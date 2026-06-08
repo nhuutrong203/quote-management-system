@@ -1,0 +1,1 @@
+// Quote setup model will be implemented when MongoDB schema is finalized.
