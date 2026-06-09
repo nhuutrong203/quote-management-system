@@ -1,7 +1,7 @@
-const ordersService = require("./orders.service");
+const orderService = require("./order.service");
 
 const getOrderForm = (req, res) => {
-  const orderForm = ordersService.getOrderForm();
+  const orderForm = orderService.getOrderForm();
 
   res.status(200).json({
     status: "OKAY",

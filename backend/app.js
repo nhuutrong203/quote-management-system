@@ -1,7 +1,7 @@
 ﻿const express = require("express");
 const cors = require("cors");
 
-const apiRoutes = require("./src/routes");
+const routes = require("./src/routes");
 const errorMiddleware = require("./src/middlewares/error.middleware");
 
 const app = express();
@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api", apiRoutes);
+app.use("/api", routes);
 
 app.use(errorMiddleware);
 
