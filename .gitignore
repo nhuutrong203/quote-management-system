@@ -17,10 +17,12 @@ node_modules/
 # Backend env
 backend/.env
 backend/.env.*
+!backend/.env.example
 
 # Frontend env
 frontend/.env
 frontend/.env.*
+!frontend/.env.example
 
 # =========================
 # Logs
