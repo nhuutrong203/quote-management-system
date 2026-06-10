@@ -45,7 +45,7 @@ const getQuoteById = async (req, res, next) => {
 
 const createQuote = async (req, res, next) => {
   try {
-    const { quoteNumber, customerId, createdBy } = req.body;
+    const { quoteNumber, customerId, createdBy, totalPlaceholder } = req.body;
 
     if (!quoteNumber || !customerId || !createdBy) {
       return res.status(400).json({
@@ -61,6 +61,16 @@ const createQuote = async (req, res, next) => {
       return res.status(400).json({
         status: "FAILED",
         message: "customerId and createdBy must be valid ObjectId values",
+      });
+    }
+
+    if (
+      totalPlaceholder !== undefined &&
+      typeof totalPlaceholder !== "number"
+    ) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "totalPlaceholder must be a number",
       });
     }
 
