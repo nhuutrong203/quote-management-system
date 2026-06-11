@@ -69,6 +69,3 @@ const quoteSchema = new mongoose.Schema(
 
 module.exports = mongoose.model("Quote", quoteSchema);
 
-
-// 6a297646fa510a08a4f30bb4\
-// 6a297647fa510a08a4f30bb8
