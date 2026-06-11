@@ -1,11 +1,17 @@
 import React, { useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { MOCK_USERS } from "../services/mockData";
+import apiService from "../services/api";
 
 export const Login = () => {
   const { currentUser, login } = useContext(AuthContext);
-  const [selectedRole, setSelectedRole] = useState("Sales");
+  const [selectedRole, setSelectedRole] = useState("Sales/SC");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [retryTime, setRetryTime] = useState(0);
   const navigate = useNavigate();
 
   // If already logged in, redirect to home
@@ -15,12 +21,73 @@ export const Login = () => {
     }
   }, [currentUser, navigate]);
 
-  const handleLogin = (e) => {
+  // Set default credentials on mount
+  useEffect(() => {
+    const defaultUser = MOCK_USERS.find((u) => u.role === "Sales/SC") || MOCK_USERS[0];
+    if (defaultUser) {
+      setEmail(defaultUser.email);
+      setPassword("demo1234");
+    }
+  }, []);
+
+  const handleRoleCardClick = (user) => {
+    setSelectedRole(user.role);
+    setEmail(user.email);
+    setPassword("demo1234");
+  };
+
+  const startRetryTimer = (seconds) => {
+    setRetryTime(seconds);
+    const interval = setInterval(() => {
+      setRetryTime((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const userToLogin = MOCK_USERS.find((u) => u.role === selectedRole);
-    if (userToLogin) {
-      login(userToLogin);
+    setError("");
+
+    if (!email.trim()) {
+      setError("Email không được để trống.");
+      return;
+    }
+    if (!password) {
+      setError("Mật khẩu không được để trống.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.login(email.trim(), password);
+      // Backend returns user data (which has role, email, name, avatar, token etc.)
+      const userData = response.data;
+      login(userData.user || userData);
       navigate("/");
+    } catch (err) {
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 401) {
+          setError("Email hoặc mật khẩu không chính xác.");
+        } else if (status === 403) {
+          setError("Tài khoản đang chờ Admin phê duyệt.");
+        } else if (status === 429) {
+          const retryAfter = err.response.data?.retryAfter || err.response.headers?.['retry-after'] || 30;
+          setError(`Sai quá nhiều lần. Hãy thử lại sau ${retryAfter} giây.`);
+          startRetryTimer(retryAfter);
+        } else {
+          setError(err.response.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+        }
+      } else {
+        setError("Không thể kết nối đến máy chủ.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,26 +120,40 @@ export const Login = () => {
             
             <h3 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#001e40", marginBottom: "4px" }}>Welcome Back</h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              Please select a role to sign in to the demo environment.
+              Please select a role or enter your credentials to sign in.
             </p>
           </div>
+
+          {error && (
+            <div style={{ 
+              backgroundColor: "var(--danger-light)", 
+              color: "var(--danger)", 
+              padding: "0.75rem", 
+              borderRadius: "var(--radius-sm)", 
+              fontSize: "0.8rem", 
+              fontWeight: 700, 
+              marginBottom: "1rem" 
+            }}>
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleLogin}>
             {/* Quick role switcher cards */}
             <div className="role-mini-grid">
               {MOCK_USERS.map((user) => {
                 const labelMap = {
-                  Sales: "Sales / SC",
-                  HOD: "Head Of Dept",
-                  SC_HEAD: "Supply Chain Head",
-                  GM: "General Manager"
+                  "Sales/SC": "Sales / SC",
+                  "HOD": "Head Of Dept",
+                  "SC Head": "SC Head",
+                  "GM": "General Manager"
                 };
 
                 return (
                   <div
                     key={user.id}
                     className={`role-mini-card ${selectedRole === user.role ? "active" : ""}`}
-                    onClick={() => setSelectedRole(user.role)}
+                    onClick={() => handleRoleCardClick(user)}
                   >
                     <span className="role-mini-card-label">{labelMap[user.role]}</span>
                     <span className="role-mini-card-email" title={user.email}>{user.email}</span>
@@ -90,11 +171,12 @@ export const Login = () => {
             <div className="form-group">
               <label className="form-label">Corporate Email Address</label>
               <input
-                type="text"
+                type="email"
                 className="form-control"
-                disabled
-                value={MOCK_USERS.find((u) => u.role === selectedRole)?.email || ""}
-                style={{ backgroundColor: "var(--bg-app)", fontWeight: 600 }}
+                placeholder="username@amb.com.sg"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ height: "40px", fontWeight: 600 }}
               />
             </div>
 
@@ -103,9 +185,10 @@ export const Login = () => {
               <input
                 type="password"
                 className="form-control"
-                disabled
-                value="demo1234"
-                style={{ backgroundColor: "var(--bg-app)", fontWeight: 600 }}
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ height: "40px", fontWeight: 600 }}
               />
             </div>
 
@@ -121,11 +204,19 @@ export const Login = () => {
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={loading || retryTime > 0}
               style={{ width: "100%", padding: "0.85rem", fontSize: "0.95rem" }}
             >
-              Sign In
+              {loading ? "Signing In..." : retryTime > 0 ? `Thử lại sau ${retryTime}s` : "Sign In"}
             </button>
           </form>
+
+          <div style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.85rem" }}>
+            <span style={{ color: "var(--text-secondary)" }}>Don't have an account? </span>
+            <Link to="/signup" style={{ color: "var(--primary)", fontWeight: 700, textDecoration: "none" }}>
+              Sign Up
+            </Link>
+          </div>
 
           {/* Footer inside login card */}
           <div style={{ marginTop: "2rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>

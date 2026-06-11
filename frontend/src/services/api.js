@@ -1,4 +1,14 @@
+import axios from "axios";
 import { MOCK_USERS, MOCK_CUSTOMERS, MOCK_QUOTE_SETUP, INITIAL_QUOTES } from "./mockData";
+
+const API_URL = "http://localhost:5000/api";
+
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
 
 // Initialize localStorage if empty
 const getStoredQuotes = () => {
@@ -14,10 +24,37 @@ const setStoredQuotes = (quotes) => {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 };
 
+const getStoredUsers = () => {
+  const stored = localStorage.getItem("users");
+  if (!stored) {
+    localStorage.setItem("users", JSON.stringify(MOCK_USERS));
+    return MOCK_USERS;
+  }
+  return JSON.parse(stored);
+};
+
+const setStoredUsers = (users) => {
+  localStorage.setItem("users", JSON.stringify(users));
+};
+
 export const apiService = {
+  // Authentication
+  login: async (email, password) => {
+    return await axiosInstance.post("/auth/login", { email, password });
+  },
+
+  registerUser: async (name, email, password, proposedRole) => {
+    return await axiosInstance.post("/auth/register", { name, email, password, proposedRole });
+  },
+
   // Users
   getUsers: async () => {
-    return { data: MOCK_USERS };
+    try {
+      return await axiosInstance.get("/users");
+    } catch (err) {
+      const users = getStoredUsers();
+      return { data: users };
+    }
   },
 
   // Customers
@@ -48,7 +85,8 @@ export const apiService = {
     const quotes = getStoredQuotes();
     
     // Find creator user detail
-    const creator = MOCK_USERS.find((u) => u.id === payload.createdBy || u.role === "Sales") || MOCK_USERS[0];
+    const users = getStoredUsers();
+    const creator = users.find((u) => u.id === payload.createdBy || u.role === "Sales") || users[0];
     // Find customer detail
     const customer = MOCK_CUSTOMERS.find((c) => c.id === payload.customerId) || MOCK_CUSTOMERS[0];
 
