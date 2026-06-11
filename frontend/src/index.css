@@ -1477,3 +1477,180 @@ p {
   }
 }
 
+/* Figma 100% Matching Split Login Styles */
+.login-left-pane {
+  width: 58%;
+  background-image: url('./assets/login_bg.png');
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5rem;
+  text-align: left;
+  position: relative;
+}
+
+.login-left-pane::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 30, 64, 0.85) 0%, rgba(0, 51, 102, 0.6) 100%);
+  z-index: 1;
+}
+
+.login-brand-card {
+  max-width: 520px;
+  background: rgba(0, 30, 64, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+  position: relative;
+}
+
+.login-right-pane {
+  width: 42%;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3.5rem 4.5rem;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.login-right-content-wrapper {
+  margin: auto 0;
+  max-width: 420px;
+  width: 100%;
+  text-align: left;
+}
+
+.figma-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.figma-role-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.figma-role-card:hover, .figma-role-card.active {
+  border-color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.figma-role-card-icon {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.figma-role-card.active .figma-role-card-icon {
+  color: var(--primary);
+}
+
+.figma-role-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.figma-role-card-email {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #001e40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 130px;
+}
+
+.figma-role-card-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.login-right-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.25rem;
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.login-footer-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.login-status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.login-footer-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.login-footer-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.login-footer-links a:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 1024px) {
+  .login-left-pane {
+    display: none;
+  }
+  .login-right-pane {
+    width: 100%;
+    padding: 2.5rem 2rem;
+    align-items: center;
+  }
+  .login-right-content-wrapper {
+    margin: 2rem 0;
+  }
+  .login-right-footer {
+    width: 100%;
+    max-width: 420px;
+  }
+}
+
+

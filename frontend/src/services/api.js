@@ -40,11 +40,57 @@ const setStoredUsers = (users) => {
 export const apiService = {
   // Authentication
   login: async (email, password) => {
-    return await axiosInstance.post("/auth/login", { email, password });
+    try {
+      return await axiosInstance.post("/auth/login", { email, password });
+    } catch (err) {
+      // Fallback for mock environment if backend auth routes are not implemented yet (404)
+      if (err.response && err.response.status === 404) {
+        const users = getStoredUsers();
+        const user = users.find((u) => u.email === email);
+        if (user) {
+          return { data: user };
+        }
+        throw {
+          response: {
+            status: 401,
+            data: { message: "Email hoặc mật khẩu không chính xác." }
+          }
+        };
+      }
+      throw err;
+    }
   },
 
   registerUser: async (name, email, password, proposedRole) => {
-    return await axiosInstance.post("/auth/register", { name, email, password, proposedRole });
+    try {
+      return await axiosInstance.post("/auth/register", { name, email, password, proposedRole });
+    } catch (err) {
+      // Fallback for mock environment if backend auth routes are not implemented yet (404)
+      if (err.response && err.response.status === 404) {
+        const users = getStoredUsers();
+        if (users.some((u) => u.email === email)) {
+          throw {
+            response: {
+              status: 409,
+              data: { message: "Email này đã được đăng ký." }
+            }
+          };
+        }
+        
+        const newUser = {
+          id: "u_" + Date.now(),
+          name,
+          email,
+          role: proposedRole,
+          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`
+        };
+        
+        users.push(newUser);
+        setStoredUsers(users);
+        return { data: newUser };
+      }
+      throw err;
+    }
   },
 
   // Users
