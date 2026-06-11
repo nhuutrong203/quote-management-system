@@ -18,7 +18,7 @@ const EyeOffIcon = () => (
 );
 
 export const SignUp = () => {
-  const { currentUser, register } = useContext(AuthContext);
+  const { currentUser, register, login } = useContext(AuthContext);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -108,13 +108,20 @@ export const SignUp = () => {
 
     setLoading(true);
     try {
-      await register(name.trim(), email.trim(), password, proposedRole);
-      setSuccessMessage("Đăng ký thành công! Tài khoản đang chờ Admin phê duyệt.");
+      const newUser = await register(name.trim(), email.trim(), password, proposedRole);
+      setSuccessMessage("Đăng ký thành công! Đang đăng nhập...");
       
-      // Auto-redirect to login after 3 seconds
+      // Extract user: newUser.data for real backend, newUser for mock fallback
+      const user = newUser.data && typeof newUser.data === "object" && newUser.data.email 
+        ? newUser.data 
+        : newUser;
+      
+      // Auto login and redirect to dashboard
+      login(user);
+      
       setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+        navigate("/");
+      }, 1500);
     } catch (err) {
       if (err.response) {
         const status = err.response.status;

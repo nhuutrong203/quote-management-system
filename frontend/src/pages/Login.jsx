@@ -126,10 +126,15 @@ export const Login = () => {
     try {
       // Call backend API login
       const response = await apiService.login(email.trim(), password);
-      const userData = response.data;
+      const rawData = response.data;
+      
+      // Extract user: rawData.data.user for real backend, rawData for mock fallback
+      const user = rawData.data && rawData.data.user 
+        ? rawData.data.user 
+        : rawData;
       
       // Store user data in context & localStorage
-      login(userData.user || userData);
+      login(user);
       navigate("/");
     } catch (err) {
       if (err.response) {
