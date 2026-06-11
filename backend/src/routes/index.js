@@ -6,10 +6,12 @@ const quoteRoutes = require("../modules/quotes/quote.routes");
 const orderRoutes = require("../modules/orders/order.routes");
 const quoteSetupRoutes = require("../modules/quoteSetup/quoteSetup.routes");
 const userRoutes = require("../modules/users/user.routes");
+const authRoutes = require("../modules/auth/auth.routes");
 
 const router = express.Router();
 
 router.use("/health", healthRoutes);
+router.use("/auth", authRoutes);
 router.use("/customers", customerRoutes);
 router.use("/quotes", quoteRoutes);
 router.use("/orders", orderRoutes);
