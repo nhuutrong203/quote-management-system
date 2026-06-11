@@ -1,4 +1,14 @@
+import axios from "axios";
 import { MOCK_USERS, MOCK_CUSTOMERS, MOCK_QUOTE_SETUP, INITIAL_QUOTES } from "./mockData";
+
+const API_URL = "http://localhost:5000/api";
+
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
 
 // Initialize localStorage if empty
 const getStoredQuotes = () => {
@@ -14,10 +24,109 @@ const setStoredQuotes = (quotes) => {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 };
 
+const getStoredUsers = () => {
+  const stored = localStorage.getItem("users");
+  if (!stored) {
+    localStorage.setItem("users", JSON.stringify(MOCK_USERS));
+    return MOCK_USERS;
+  }
+  return JSON.parse(stored);
+};
+
+const setStoredUsers = (users) => {
+  localStorage.setItem("users", JSON.stringify(users));
+};
+
 export const apiService = {
+  // Authentication
+  login: async (email, password) => {
+    try {
+      return await axiosInstance.post("/auth/login", { email, password });
+    } catch (err) {
+      // Fallback for mock environment if backend auth routes are not implemented yet (404)
+      if (err.response && err.response.status === 404) {
+        const users = getStoredUsers();
+        const user = users.find((u) => u.email === email);
+        if (user) {
+          return { data: user };
+        }
+        throw {
+          response: {
+            status: 401,
+            data: { message: "Email hoặc mật khẩu không chính xác." }
+          }
+        };
+      }
+      throw err;
+    }
+  },
+
+  registerUser: async (name, email, password, proposedRole) => {
+    // Helper for mock registration
+    const handleMockRegister = () => {
+      const users = getStoredUsers();
+      if (users.some((u) => u.email === email)) {
+        throw {
+          response: {
+            status: 409,
+            data: { message: "Email này đã được đăng ký." }
+          }
+        };
+      }
+      
+      const newUser = {
+        id: "u_" + Date.now(),
+        name,
+        email,
+        role: proposedRole,
+        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`
+      };
+      
+      users.push(newUser);
+      setStoredUsers(users);
+      return { data: newUser };
+    };
+
+    try {
+      // Try the requested endpoint /auth/register
+      return await axiosInstance.post("/auth/register", { 
+        name, 
+        email, 
+        password, 
+        proposedRole,
+        role: proposedRole // backend compatibility
+      });
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        try {
+          // Fallback: try actual backend staging route /auth/signup
+          return await axiosInstance.post("/auth/signup", { 
+            name, 
+            email, 
+            password, 
+            proposedRole,
+            role: proposedRole // backend compatibility
+          });
+        } catch (subErr) {
+          // If still 404, fallback to local storage mock
+          if (subErr.response && subErr.response.status === 404) {
+            return handleMockRegister();
+          }
+          throw subErr;
+        }
+      }
+      throw err;
+    }
+  },
+
   // Users
   getUsers: async () => {
-    return { data: MOCK_USERS };
+    try {
+      return await axiosInstance.get("/users");
+    } catch (err) {
+      const users = getStoredUsers();
+      return { data: users };
+    }
   },
 
   // Customers
@@ -48,7 +157,8 @@ export const apiService = {
     const quotes = getStoredQuotes();
     
     // Find creator user detail
-    const creator = MOCK_USERS.find((u) => u.id === payload.createdBy || u.role === "Sales") || MOCK_USERS[0];
+    const users = getStoredUsers();
+    const creator = users.find((u) => u.id === payload.createdBy || u.role === "Sales") || users[0];
     // Find customer detail
     const customer = MOCK_CUSTOMERS.find((c) => c.id === payload.customerId) || MOCK_CUSTOMERS[0];
 

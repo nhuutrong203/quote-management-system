@@ -262,9 +262,9 @@ p {
   letter-spacing: 0.025em;
 }
 
-.role-Sales { background-color: var(--info-light); color: var(--info); }
+.role-Sales-SC, .role-Sales { background-color: var(--info-light); color: var(--info); }
 .role-HOD { background-color: var(--warning-light); color: var(--warning); }
-.role-SC_HEAD { background-color: var(--primary-light); color: var(--primary); }
+.role-SC-Head, .role-SC_HEAD { background-color: var(--primary-light); color: var(--primary); }
 .role-GM { background-color: var(--success-light); color: var(--success); }
 
 /* Quick Switcher dropdown */
@@ -1228,3 +1228,429 @@ p {
     min-width: 100%;
   }
 }
+
+/* Figma Centered SignUp Page Layout */
+.signup-page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f5f6f8;
+  color: #001e40;
+}
+
+.signup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 3rem;
+  background-color: transparent;
+}
+
+.signup-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.signup-header-logo-text {
+  text-align: left;
+}
+
+.signup-header-logo-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #001e40;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.signup-header-logo-sub {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.signup-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.signup-header-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.signup-header-link:hover {
+  color: var(--primary);
+}
+
+.signup-header-btn {
+  color: #001e40;
+  text-decoration: none;
+  font-weight: 700;
+  border-bottom: 2px solid #001e40;
+  padding-bottom: 2px;
+}
+
+.signup-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.signup-card {
+  width: 480px;
+  max-width: 100%;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  padding: 3rem 2.5rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 30, 64, 0.03);
+  text-align: left;
+}
+
+.signup-card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #001e40;
+  margin-bottom: 0.25rem;
+}
+
+.signup-card-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+/* Password Strength Indicator Styles */
+.password-strength-container {
+  margin-top: 0.5rem;
+}
+
+.password-strength-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.password-strength-label-value {
+  color: var(--primary);
+}
+
+.password-strength-bars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.password-strength-bar {
+  flex: 1;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast);
+}
+
+.password-strength-bar.weak {
+  background-color: var(--danger);
+}
+
+.password-strength-bar.medium {
+  background-color: var(--warning);
+}
+
+.password-strength-bar.strong {
+  background-color: var(--success);
+}
+
+/* Footer Section */
+.signup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 3rem;
+  border-top: 1px solid rgba(0, 30, 64, 0.05);
+  background-color: transparent;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.signup-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.signup-footer-brand {
+  font-weight: 700;
+  color: #001e40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signup-footer-right {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.signup-footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.signup-footer-link:hover {
+  color: var(--primary);
+}
+
+/* Eye Icon placement inside form group */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .form-control {
+  padding-right: 2.5rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle-btn:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .signup-header {
+    padding: 1.5rem 1.5rem;
+  }
+  .signup-header-nav {
+    display: none;
+  }
+  .signup-card {
+    padding: 2rem 1.5rem;
+    box-shadow: none;
+    border: none;
+    background-color: transparent;
+  }
+  .signup-body {
+    padding: 1rem 0;
+  }
+  .signup-footer {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem 1.5rem;
+    align-items: flex-start;
+  }
+  .signup-footer-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* Figma 100% Matching Split Login Styles */
+.login-left-pane {
+  width: 58%;
+  background-image: url('./assets/login_bg.png');
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5rem;
+  text-align: left;
+  position: relative;
+}
+
+.login-left-pane::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 30, 64, 0.85) 0%, rgba(0, 51, 102, 0.6) 100%);
+  z-index: 1;
+}
+
+.login-brand-card {
+  max-width: 520px;
+  background: rgba(0, 30, 64, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+  position: relative;
+}
+
+.login-right-pane {
+  width: 42%;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3.5rem 4.5rem;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.login-right-content-wrapper {
+  margin: auto 0;
+  max-width: 420px;
+  width: 100%;
+  text-align: left;
+}
+
+.figma-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.figma-role-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.figma-role-card:hover, .figma-role-card.active {
+  border-color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.figma-role-card-icon {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.figma-role-card.active .figma-role-card-icon {
+  color: var(--primary);
+}
+
+.figma-role-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.figma-role-card-email {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #001e40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 130px;
+}
+
+.figma-role-card-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.login-right-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.25rem;
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.login-footer-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.login-status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.login-footer-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.login-footer-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.login-footer-links a:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 1024px) {
+  .login-left-pane {
+    display: none;
+  }
+  .login-right-pane {
+    width: 100%;
+    padding: 2.5rem 2rem;
+    align-items: center;
+  }
+  .login-right-content-wrapper {
+    margin: 2rem 0;
+  }
+  .login-right-footer {
+    width: 100%;
+    max-width: 420px;
+  }
+}
+
+

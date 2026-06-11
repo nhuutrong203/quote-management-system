@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
-import { MOCK_USERS } from "../services/mockData";
+import apiService from "../services/api";
 
 export const AuthContext = createContext();
 
@@ -10,7 +10,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem("quote_user");
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && typeof parsed === "object" && parsed.email) {
+          setCurrentUser(parsed);
+        } else {
+          localStorage.removeItem("quote_user");
+        }
+      } catch (e) {
+        localStorage.removeItem("quote_user");
+      }
     }
     setLoading(false);
   }, []);
@@ -25,11 +34,22 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("quote_user");
   };
 
-  const switchRole = (role) => {
-    const userWithRole = MOCK_USERS.find((u) => u.role === role);
-    if (userWithRole) {
-      login(userWithRole);
+  const switchRole = async (role) => {
+    try {
+      const response = await apiService.getUsers();
+      const users = response.data;
+      const userWithRole = users.find((u) => u.role === role);
+      if (userWithRole) {
+        login(userWithRole);
+      }
+    } catch (err) {
+      console.error("Error switching role:", err);
     }
+  };
+
+  const register = async (name, email, password, proposedRole) => {
+    const response = await apiService.registerUser(name, email, password, proposedRole);
+    return response.data;
   };
 
   return (
@@ -39,7 +59,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
-        switchRole
+        switchRole,
+        register
       }}
     >
       {children}

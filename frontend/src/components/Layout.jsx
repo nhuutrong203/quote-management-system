@@ -136,10 +136,10 @@ export const Layout = () => {
             <div className="role-switcher-container" style={{ display: "flex" }}>
               <span style={{ fontWeight: 700, color: "var(--text-secondary)", fontSize: "0.85rem" }}>Active Role:</span>
               <select className="role-select" value={currentUser.role} onChange={handleRoleChange}>
-                <option value="Sales">Sales Rep (Siow)</option>
-                <option value="HOD">Trưởng phòng (HOD)</option>
-                <option value="SC_HEAD">Trưởng cung ứng (SC)</option>
-                <option value="GM">Giám đốc (GM)</option>
+                <option value="Sales/SC">Sales/SC (Siow)</option>
+                <option value="HOD">HOD (Head of Dept)</option>
+                <option value="SC Head">SC Head (Supply Chain)</option>
+                <option value="GM">GM (General Manager)</option>
               </select>
             </div>
 
@@ -148,7 +148,7 @@ export const Layout = () => {
               <img src={currentUser.avatar} alt="avatar" className="user-avatar" />
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px" }}>
                 <span style={{ fontWeight: 700, fontSize: "0.85rem", lineHeight: "1.1" }}>{currentUser.name}</span>
-                <span className={`role-tag role-${currentUser.role}`}>{currentUser.role}</span>
+                <span className={`role-tag role-${currentUser.role.replace('/', '-').replace(/\s+/g, '-')}`}>{currentUser.role}</span>
               </div>
             </div>
           </div>
@@ -189,10 +189,10 @@ export const Layout = () => {
                     setShowSettingsModal(false);
                   }}
                 >
-                  <option value="Sales">Sales Rep (Siow)</option>
-                  <option value="HOD">Trưởng phòng (HOD)</option>
-                  <option value="SC_HEAD">Trưởng cung ứng (SC)</option>
-                  <option value="GM">Giám đốc (GM)</option>
+                  <option value="Sales/SC">Sales/SC (Siow)</option>
+                  <option value="HOD">HOD (Head of Dept)</option>
+                  <option value="SC Head">SC Head (Supply Chain)</option>
+                  <option value="GM">GM (General Manager)</option>
                 </select>
               </div>
 
