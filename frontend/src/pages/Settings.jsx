@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 export const Settings = () => {
@@ -49,11 +49,11 @@ export const Settings = () => {
               </tr>
               <tr>
                 <td style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontWeight: 600 }}>Storage Mode:</td>
-                <td style={{ padding: "0.5rem 0", fontWeight: 700, textAlign: "right", color: "var(--success)" }}>Local Persistence (Demo Mode)</td>
+                <td style={{ padding: "0.5rem 0", fontWeight: 700, textAlign: "right", color: "var(--success)" }}>MongoDB Backend API</td>
               </tr>
               <tr>
                 <td style={{ padding: "0.5rem 0", color: "var(--text-secondary)", fontWeight: 600 }}>API Client:</td>
-                <td style={{ padding: "0.5rem 0", fontWeight: 700, textAlign: "right" }}>Mock Axios Stub</td>
+                <td style={{ padding: "0.5rem 0", fontWeight: 700, textAlign: "right" }}>Axios + Express API</td>
               </tr>
             </tbody>
           </table>

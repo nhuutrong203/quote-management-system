@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
@@ -15,6 +15,12 @@ export const Layout = () => {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const getRoleLabel = (role) => {
+    if (role === "Sales") return "Sales/SC";
+    if (role === "SC_HEAD") return "SC Head";
+    return role;
   };
 
   const getPageTitle = () => {
@@ -136,9 +142,9 @@ export const Layout = () => {
             <div className="role-switcher-container" style={{ display: "flex" }}>
               <span style={{ fontWeight: 700, color: "var(--text-secondary)", fontSize: "0.85rem" }}>Active Role:</span>
               <select className="role-select" value={currentUser.role} onChange={handleRoleChange}>
-                <option value="Sales/SC">Sales/SC (Siow)</option>
+                <option value="Sales">Sales/SC (Siow)</option>
                 <option value="HOD">HOD (Head of Dept)</option>
-                <option value="SC Head">SC Head (Supply Chain)</option>
+                <option value="SC_HEAD">SC Head (Supply Chain)</option>
                 <option value="GM">GM (General Manager)</option>
               </select>
             </div>
@@ -148,7 +154,7 @@ export const Layout = () => {
               <img src={currentUser.avatar} alt="avatar" className="user-avatar" />
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px" }}>
                 <span style={{ fontWeight: 700, fontSize: "0.85rem", lineHeight: "1.1" }}>{currentUser.name}</span>
-                <span className={`role-tag role-${currentUser.role.replace('/', '-').replace(/\s+/g, '-')}`}>{currentUser.role}</span>
+                <span className={`role-tag role-${currentUser.role.replace('/', '-').replace(/\s+/g, '-')}`}>{getRoleLabel(currentUser.role)}</span>
               </div>
             </div>
           </div>
@@ -189,9 +195,9 @@ export const Layout = () => {
                     setShowSettingsModal(false);
                   }}
                 >
-                  <option value="Sales/SC">Sales/SC (Siow)</option>
+                  <option value="Sales">Sales/SC (Siow)</option>
                   <option value="HOD">HOD (Head of Dept)</option>
-                  <option value="SC Head">SC Head (Supply Chain)</option>
+                  <option value="SC_HEAD">SC Head (Supply Chain)</option>
                   <option value="GM">GM (General Manager)</option>
                 </select>
               </div>

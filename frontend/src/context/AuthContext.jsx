@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect } from "react";
-import apiService from "../services/api";
+import { createContext, useState, useEffect } from "react";
+import apiService, { normalizeStoredUser } from "../services/api";
 
 export const AuthContext = createContext();
 
@@ -8,25 +8,54 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("quote_user");
-    if (storedUser) {
+    const bootstrapSession = async () => {
+      const storedUser = localStorage.getItem("quote_user");
+
+      if (!storedUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const parsed = JSON.parse(storedUser);
-        if (parsed && typeof parsed === "object" && parsed.email) {
-          setCurrentUser(parsed);
-        } else {
+
+        if (!parsed || typeof parsed !== "object" || !parsed.email) {
           localStorage.removeItem("quote_user");
+          setLoading(false);
+          return;
         }
-      } catch (e) {
+
+        const normalizedStoredUser = normalizeStoredUser(parsed);
+
+        try {
+          const response = await apiService.getUsers();
+          const matchedUser = response.data.find(
+            (user) => user.email?.toLowerCase() === normalizedStoredUser.email?.toLowerCase()
+          );
+
+          if (matchedUser) {
+            setCurrentUser(matchedUser);
+            localStorage.setItem("quote_user", JSON.stringify(matchedUser));
+          } else {
+            setCurrentUser(normalizedStoredUser);
+          }
+        } catch {
+          setCurrentUser(normalizedStoredUser);
+        }
+      } catch {
         localStorage.removeItem("quote_user");
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+
+    bootstrapSession();
   }, []);
 
   const login = (user) => {
-    setCurrentUser(user);
-    localStorage.setItem("quote_user", JSON.stringify(user));
+    const normalizedUser = normalizeStoredUser(user);
+    setCurrentUser(normalizedUser);
+    localStorage.setItem("quote_user", JSON.stringify(normalizedUser));
   };
 
   const logout = () => {

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
@@ -23,7 +23,7 @@ export const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [proposedRole, setProposedRole] = useState("Sales/SC");
+  const [proposedRole, setProposedRole] = useState("Sales");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
@@ -289,9 +289,9 @@ export const SignUp = () => {
                 onChange={(e) => setProposedRole(e.target.value)}
                 style={{ height: "40px", cursor: "pointer", fontWeight: 600 }}
               >
-                <option value="Sales/SC">Sales/SC</option>
+                <option value="Sales">Sales/SC</option>
                 <option value="HOD">HOD</option>
-                <option value="SC Head">SC Head</option>
+                <option value="SC_HEAD">SC Head</option>
                 <option value="GM">GM</option>
               </select>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { MOCK_USERS } from "../services/mockData";
@@ -65,7 +65,6 @@ const ArrowRight = () => (
 
 export const Login = () => {
   const { currentUser, login } = useContext(AuthContext);
-  const [selectedRole, setSelectedRole] = useState("Sales/SC");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -83,18 +82,12 @@ export const Login = () => {
 
   // Set default credentials on mount
   useEffect(() => {
-    const defaultUser = MOCK_USERS.find((u) => u.role === "Sales/SC") || MOCK_USERS[0];
+    const defaultUser = MOCK_USERS.find((u) => u.role === "Sales") || MOCK_USERS[0];
     if (defaultUser) {
       setEmail(defaultUser.email);
       setPassword("demo1234");
     }
   }, []);
-
-  const handleRoleCardClick = (user) => {
-    setSelectedRole(user.role);
-    setEmail(user.email);
-    setPassword("demo1234");
-  };
 
   const startRetryTimer = (seconds) => {
     setRetryTime(seconds);
@@ -129,8 +122,8 @@ export const Login = () => {
       const rawData = response.data;
       
       // Extract user: rawData.data.user for real backend, rawData for mock fallback
-      const user = rawData.data && rawData.data.user 
-        ? rawData.data.user 
+      const user = rawData.data && rawData.data.user
+        ? rawData.data.user
         : rawData;
       
       // Store user data in context & localStorage

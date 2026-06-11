@@ -3,7 +3,7 @@ export const MOCK_USERS = [
     id: "u1",
     name: "Siow",
     email: "siow@amb.com.sg",
-    role: "Sales/SC",
+    role: "Sales",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=siow"
   },
   {
@@ -17,7 +17,7 @@ export const MOCK_USERS = [
     id: "u3",
     name: "SC Head Singapore",
     email: "schead@amb.com.sg",
-    role: "SC Head",
+    role: "SC_HEAD",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=schead"
   },
   {
