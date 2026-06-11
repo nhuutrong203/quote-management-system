@@ -10,7 +10,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem("quote_user");
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && typeof parsed === "object" && parsed.email) {
+          setCurrentUser(parsed);
+        } else {
+          localStorage.removeItem("quote_user");
+        }
+      } catch (e) {
+        localStorage.removeItem("quote_user");
+      }
     }
     setLoading(false);
   }, []);
