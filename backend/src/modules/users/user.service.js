@@ -7,7 +7,7 @@ const mockUsers = [
   {
     _id: "mock-user-sales",
     name: "Sales Coordinator",
-    email: "sales@amb.com.sg",
+    email: "siow@amb.com.sg",
     password: "demo1234",
     role: "Sales",
     isActive: true,

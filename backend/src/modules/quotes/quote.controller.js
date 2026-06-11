@@ -86,8 +86,70 @@ const createQuote = async (req, res, next) => {
   }
 };
 
+const updateQuote = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "Invalid quote id",
+      });
+    }
+
+    const { customerId, updatedBy, createdBy, totalPlaceholder } = req.body;
+
+    if (customerId && !mongoose.isValidObjectId(customerId)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "customerId must be a valid ObjectId value",
+      });
+    }
+
+    if (updatedBy && !mongoose.isValidObjectId(updatedBy)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "updatedBy must be a valid ObjectId value",
+      });
+    }
+
+    if (createdBy && !mongoose.isValidObjectId(createdBy)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "createdBy must be a valid ObjectId value",
+      });
+    }
+
+    if (
+      totalPlaceholder !== undefined &&
+      typeof totalPlaceholder !== "number"
+    ) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "totalPlaceholder must be a number",
+      });
+    }
+
+    const quote = await quoteService.updateQuote(req.params.id, req.body);
+
+    if (!quote) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "Quote not found",
+      });
+    }
+
+    res.status(200).json({
+      status: "OK",
+      message: "Quote updated successfully",
+      data: quote,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getQuotes,
   getQuoteById,
   createQuote,
+  updateQuote,
 };

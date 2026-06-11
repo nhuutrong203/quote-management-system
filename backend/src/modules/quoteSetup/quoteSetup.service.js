@@ -1,6 +1,6 @@
 const mockQuoteSetup = {
   customerType: "Enterprise",
-  currency: "USD",
+  currency: "S$",
   paymentTerm: "Net 30",
   discountRate: 5,
   taxRate: 10,
