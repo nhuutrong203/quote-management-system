@@ -4,6 +4,20 @@ const formatCurrency = (amount) => {
   return `S$${Number(amount || 0).toLocaleString("en-SG")}`;
 };
 
+const getStatusLabel = (status) => {
+  const statusLabels = {
+    Draft: "Draft",
+    Pending: "Pending",
+    Processing: "Processing",
+    PendingApproval: "Pending approval",
+    Approved: "Active",
+    Rejected: "Rejected",
+    AskedForEdit: "Asked for edit",
+  };
+
+  return statusLabels[status] || status;
+};
+
 const sanitizeUser = (user) => {
   if (!user) return null;
 
@@ -77,7 +91,7 @@ const mapQuoteToClientDTO = (quote) => {
     creationDate: quote.createdAt,
     createdAt: quote.createdAt,
     createdBy,
-    statusLabel: quote.status === "Approved" ? "Active" : quote.status,
+    statusLabel: getStatusLabel(quote.status),
     boxStyle: quote.parameters?.boxStyle || "N/A",
     type: quote.type || "Single Wall",
     dimension: quote.dimension || "40x30x30",

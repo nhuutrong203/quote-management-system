@@ -24,7 +24,15 @@ const seedQuoteListData = async () => {
       "Ocean Foods Asia",
     ];
 
-    const mockQuoteNumbers = ["Q-12345", "Q-12346", "Q-12347"];
+    const mockQuoteNumbers = [
+      "Q-12345",
+      "Q-12346",
+      "Q-12347",
+      "Q-12348",
+      "Q-12349",
+      "Q-12350",
+      "Q-12351",
+    ];
 
     await User.deleteMany({ email: { $in: mockUserEmails } });
     await Customer.deleteMany({ companyName: { $in: mockCustomerNames } });
@@ -90,7 +98,7 @@ const seedQuoteListData = async () => {
       {
         quoteNumber: "Q-12345",
         customerId: customers[0]._id,
-        status: "Pending",
+        status: "Draft",
         parameters: {
           boxStyle: "Corrugated / RSC",
           flute: "B Flute",
@@ -102,7 +110,7 @@ const seedQuoteListData = async () => {
       {
         quoteNumber: "Q-12346",
         customerId: customers[1]._id,
-        status: "Approved",
+        status: "Pending",
         parameters: {
           boxStyle: "Corrugated / FOL",
           flute: "C Flute",
@@ -114,11 +122,59 @@ const seedQuoteListData = async () => {
       {
         quoteNumber: "Q-12347",
         customerId: customers[2]._id,
-        status: "Draft",
+        status: "Processing",
         parameters: {
           boxStyle: "Offset / Tray",
           flute: "N/A",
           moq: "10000",
+        },
+        totalPlaceholder: 125000,
+        createdBy: salesUser._id,
+      },
+      {
+        quoteNumber: "Q-12348",
+        customerId: customers[0]._id,
+        status: "PendingApproval",
+        parameters: {
+          boxStyle: "Corrugated / Two-piece",
+          flute: "BE Flute",
+          moq: "5000",
+        },
+        totalPlaceholder: 125000,
+        createdBy: salesUser._id,
+      },
+      {
+        quoteNumber: "Q-12349",
+        customerId: customers[1]._id,
+        status: "Approved",
+        parameters: {
+          boxStyle: "Offset Laminated / Sleeve",
+          flute: "E Flute",
+          moq: "3000",
+        },
+        totalPlaceholder: 125000,
+        createdBy: salesUser._id,
+      },
+      {
+        quoteNumber: "Q-12350",
+        customerId: customers[2]._id,
+        status: "Rejected",
+        parameters: {
+          boxStyle: "Corrugated / RSC",
+          flute: "BC Flute",
+          moq: "10000",
+        },
+        totalPlaceholder: 125000,
+        createdBy: salesUser._id,
+      },
+      {
+        quoteNumber: "Q-12351",
+        customerId: customers[0]._id,
+        status: "AskedForEdit",
+        parameters: {
+          boxStyle: "Offset / Tray",
+          flute: "F Flute",
+          moq: "Based on enquiry",
         },
         totalPlaceholder: 125000,
         createdBy: salesUser._id,
