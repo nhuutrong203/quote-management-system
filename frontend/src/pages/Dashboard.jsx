@@ -182,22 +182,22 @@ export const Dashboard = () => {
                     </div>
 
                     <div className="desktop-quote-card-title-row">
-                      <div className="desktop-quote-card-id">Quote ID: {q.quoteNumber}</div>
+                      <div className="desktop-quote-card-id">{q.quoteNumber}</div>
                       <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
                     </div>
 
                     <div className="desktop-quote-card-specs">
                       <div className="desktop-quote-card-spec-item">
                         <span className="desktop-quote-card-spec-label">Box Style</span>
-                        <span className="desktop-quote-card-spec-value">{q.boxStyle || "Custom RSC"}</span>
+                        <span className="desktop-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
                       </div>
                       <div className="desktop-quote-card-spec-item">
                         <span className="desktop-quote-card-spec-label">Flute</span>
-                        <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B-Flute Single"}</span>
+                        <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B"}</span>
                       </div>
                       <div className="desktop-quote-card-spec-item">
                         <span className="desktop-quote-card-spec-label">MOQ</span>
-                        <span className="desktop-quote-card-spec-value">{q.moq || "5,000 Pcs"}</span>
+                        <span className="desktop-quote-card-spec-value">{q.moq || "5k"}</span>
                       </div>
                     </div>
 
@@ -243,15 +243,15 @@ export const Dashboard = () => {
                     <div className="mobile-quote-card-specs">
                       <div className="mobile-quote-card-spec-row">
                         <span className="mobile-quote-card-spec-label">Box Style</span>
-                        <span className="mobile-quote-card-spec-value">{q.boxStyle || "RSC (Standard)"}</span>
+                        <span className="mobile-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
                       </div>
                       <div className="mobile-quote-card-spec-row">
                         <span className="mobile-quote-card-spec-label">Flute Type</span>
-                        <span className="mobile-quote-card-spec-value">{q.fluteType || "B-Flute Single Wall"}</span>
+                        <span className="mobile-quote-card-spec-value">{q.fluteType || "B"}</span>
                       </div>
                       <div className="mobile-quote-card-spec-row">
                         <span className="mobile-quote-card-spec-label">MOQ</span>
-                        <span className="mobile-quote-card-spec-value">{q.moq || "5,000 Units"}</span>
+                        <span className="mobile-quote-card-spec-value">{q.moq || "5k"}</span>
                       </div>
                     </div>
 
@@ -313,11 +313,11 @@ export const Dashboard = () => {
                     </div>
                     <div>
                       <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Flute</div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.fluteType || "B Flute"}</div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.fluteType || "B"}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>MOQ</div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.moq || "3,000 Pcs"}</div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.moq || "3k"}</div>
                     </div>
                   </div>
 

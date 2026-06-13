@@ -83,6 +83,29 @@ const normalizeCustomer = (customer) => {
   };
 };
 
+const normalizeOrderPreview = (order) => {
+  if (!order) return null;
+
+  return {
+    orderId: order.orderId || "ORD-12345",
+    quoteId: order.quoteId || "",
+    quoteNumber: order.quoteNumber || "#12345",
+    status: order.status || "Draft",
+    quoteTotalLabel: order.quoteTotalLabel || "S$125,000",
+    customer: normalizeCustomer(order.customer),
+    orderDetails: {
+      boxStyle: order.orderDetails?.boxStyle || "Corrugated",
+      type: order.orderDetails?.type || "RSC",
+      dimension: order.orderDetails?.dimension || "ID (L x W x H mm)",
+      fluteType: order.orderDetails?.fluteType || "B",
+      boardQuality: order.orderDetails?.boardQuality || "150 GSM",
+      colors: order.orderDetails?.colors || "2",
+      joints: order.orderDetails?.joints || "Glue",
+      moq: order.orderDetails?.moq || "5k",
+    },
+  };
+};
+
 const formatCurrency = (value) =>
   "S$" +
   new Intl.NumberFormat("en-US", {
@@ -90,13 +113,33 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 
+const parseMoqQuantity = (value) => {
+  const normalized = String(value || "").toLowerCase().replace(/,/g, "").trim();
+
+  if (!normalized) {
+    return 1;
+  }
+
+  if (normalized === "based on enquiry") {
+    return 1000;
+  }
+
+  if (normalized.endsWith("k")) {
+    const parsedThousands = Number(normalized.replace(/[^0-9.]/g, ""));
+    return parsedThousands > 0 ? parsedThousands * 1000 : 1;
+  }
+
+  const parsedDigits = Number(normalized.replace(/[^0-9.]/g, ""));
+  return parsedDigits > 0 ? parsedDigits : 1;
+};
+
 const buildFallbackItems = (quote) => {
-  const quantity = Number(String(quote.moq || quote.parameters?.moq || "1").replace(/[^0-9.]/g, "")) || 1;
+  const quantity = parseMoqQuantity(quote.moq || quote.parameters?.moq || "1");
   const amount = Number(quote.totalPlaceholder || 0);
 
   return [
     {
-      name: `${quote.boxStyle || quote.parameters?.boxStyle || "Packaging"} Box Production`,
+      name: `${quote.boxStyle || quote.parameters?.boxStyle || "Corrugated"} Box Production`,
       quantity,
       unitPrice: amount > 0 ? amount / quantity : 0,
     },
@@ -173,14 +216,14 @@ const normalizeQuote = (quote) => {
     customerId: customer.id,
     status: quote.status || "Draft",
     statusLabel: quote.statusLabel || (quote.status === "Approved" ? "Active" : quote.status),
-    boxStyle: quote.boxStyle || quote.parameters?.boxStyle || "N/A",
-    type: quote.type || "Single Wall",
-    dimension: quote.dimension || "40x30x30",
-    fluteType: quote.fluteType || quote.parameters?.flute || "N/A",
-    boardQuality: quote.boardQuality || "N/A",
-    colors: quote.colors || "N/A",
-    joints: quote.joints || "N/A",
-    moq: quote.moq || quote.parameters?.moq || "N/A",
+    boxStyle: quote.boxStyle || quote.parameters?.boxStyle || "Corrugated",
+    type: quote.type || "RSC",
+    dimension: quote.dimension || "ID (L x W x H mm)",
+    fluteType: quote.fluteType || quote.parameters?.flute || "B",
+    boardQuality: quote.boardQuality || "150 GSM",
+    colors: quote.colors || "2",
+    joints: quote.joints || "Glue",
+    moq: quote.moq || quote.parameters?.moq || "5k",
     items,
     createdBy,
     createdAt: quote.createdAt || quote.creationDate || new Date().toISOString(),
@@ -272,6 +315,13 @@ export const apiService = {
     };
   },
 
+  getQuoteParameterOptions: async () => {
+    const response = await axiosInstance.get("/quote-parameters/options");
+    return {
+      data: unwrapResponse(response),
+    };
+  },
+
   getQuotes: async () => {
     const response = await axiosInstance.get("/quotes");
     return {
@@ -283,6 +333,14 @@ export const apiService = {
     const response = await axiosInstance.get(`/quotes/${id}`);
     return {
       data: normalizeQuote(unwrapResponse(response)),
+    };
+  },
+
+  getOrderFormPreview: async (quoteId) => {
+    const endpoint = quoteId ? `/orders/form/${quoteId}` : "/orders/form";
+    const response = await axiosInstance.get(endpoint);
+    return {
+      data: normalizeOrderPreview(unwrapResponse(response)),
     };
   },
 

@@ -6,7 +6,7 @@ const ALLOWED_ROLES = ["Sales", "HOD", "SC_HEAD", "GM"];
 const mockUsers = [
   {
     _id: "mock-user-sales",
-    name: "Sales Coordinator",
+    name: "Siow",
     email: "siow@amb.com.sg",
     password: "demo1234",
     role: "Sales",
@@ -16,7 +16,7 @@ const mockUsers = [
   },
   {
     _id: "mock-user-hod",
-    name: "Head of Department",
+    name: "HOD Singapore",
     email: "hod@amb.com.sg",
     password: "demo1234",
     role: "HOD",
@@ -26,7 +26,7 @@ const mockUsers = [
   },
   {
     _id: "mock-user-schead",
-    name: "SC Head",
+    name: "SC Head Singapore",
     email: "schead@amb.com.sg",
     password: "demo1234",
     role: "SC_HEAD",
@@ -36,7 +36,7 @@ const mockUsers = [
   },
   {
     _id: "mock-user-gm",
-    name: "General Manager",
+    name: "GM Singapore",
     email: "gm@amb.com.sg",
     password: "demo1234",
     role: "GM",

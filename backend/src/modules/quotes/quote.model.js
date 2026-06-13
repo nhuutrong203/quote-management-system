@@ -35,50 +35,50 @@ const quoteSchema = new mongoose.Schema(
       boxStyle: {
         type: String,
         trim: true,
-        default: "N/A",
+        default: "Corrugated",
       },
 
       flute: {
         type: String,
         trim: true,
-        default: "N/A",
+        default: "B",
       },
 
       moq: {
         type: String,
         trim: true,
-        default: "N/A",
+        default: "5k",
       },
     },
 
     type: {
       type: String,
       trim: true,
-      default: "Single Wall",
+      default: "RSC",
     },
 
     dimension: {
       type: String,
       trim: true,
-      default: "40x30x30",
+      default: "ID (L x W x H mm)",
     },
 
     boardQuality: {
       type: String,
       trim: true,
-      default: "N/A",
+      default: "150 GSM",
     },
 
     colors: {
       type: String,
       trim: true,
-      default: "N/A",
+      default: "2",
     },
 
     joints: {
       type: String,
       trim: true,
-      default: "N/A",
+      default: "Glue",
     },
 
     items: [

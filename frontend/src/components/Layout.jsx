@@ -30,6 +30,7 @@ export const Layout = () => {
     if (path.includes("/quotes/new")) return "New Quote";
     if (path.includes("/quotes/edit")) return "Edit Quote";
     if (path.includes("/quotes/")) return "Quote Details";
+    if (path.includes("/orders/preview/")) return "Order Form Preview";
     if (path === "/settings") return "Settings Panel";
     return "Workspace";
   };

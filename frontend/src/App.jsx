@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import QuoteList from "./pages/QuoteList";
 import QuoteForm from "./pages/QuoteForm";
 import QuoteDetail from "./pages/QuoteDetail";
+import OrderFormPreview from "./pages/OrderFormPreview";
 import Settings from "./pages/Settings";
 
 // Protected Route Component
@@ -51,6 +52,7 @@ function App() {
             <Route path="quotes/new" element={<QuoteForm />} />
             <Route path="quotes/edit/:id" element={<QuoteForm />} />
             <Route path="quotes/:id" element={<QuoteDetail />} />
+            <Route path="orders/preview/:quoteId" element={<OrderFormPreview />} />
             
             {/* Settings Routing */}
             <Route path="settings" element={<Settings />} />

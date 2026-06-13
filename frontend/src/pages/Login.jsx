@@ -1,7 +1,6 @@
 import { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { MOCK_USERS } from "../services/mockData";
 import apiService from "../services/api";
 
 // Icons for Quick Selector Cards
@@ -82,11 +81,26 @@ export const Login = () => {
 
   // Set default credentials on mount
   useEffect(() => {
-    const defaultUser = MOCK_USERS.find((u) => u.role === "Sales") || MOCK_USERS[0];
-    if (defaultUser) {
-      setEmail(defaultUser.email);
+    const loadDefaultCredentials = async () => {
+      try {
+        const response = await apiService.getUsers();
+        const users = response.data || [];
+        const defaultUser = users.find((user) => user.role === "Sales") || users[0];
+
+        if (defaultUser?.email) {
+          setEmail(defaultUser.email);
+          setPassword("demo1234");
+          return;
+        }
+      } catch (error) {
+        console.error("Unable to prefill demo credentials:", error);
+      }
+
+      setEmail("siow@amb.com.sg");
       setPassword("demo1234");
-    }
+    };
+
+    loadDefaultCredentials();
   }, []);
 
   const startRetryTimer = (seconds) => {
