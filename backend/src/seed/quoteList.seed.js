@@ -7,7 +7,7 @@ const User = require("../modules/users/user.model");
 const Customer = require("../modules/customers/customer.model");
 const Quote = require("../modules/quotes/quote.model");
 const Order = require("../modules/orders/order.model");
-const { DEFAULT_ORDER_TOTAL_LABEL } = require("../modules/orders/order.mock");
+const { DEFAULT_ORDER_TOTAL_LABEL } = require("./order.seed-data");
 
 const seedQuoteListData = async () => {
   try {

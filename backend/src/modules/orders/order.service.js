@@ -1,7 +1,10 @@
 const mongoose = require("mongoose");
 const Order = require("./order.model");
 const Quote = require("../quotes/quote.model");
-const { DEFAULT_ORDER_TOTAL_LABEL, mockOrderPreviews } = require("./order.mock");
+const {
+  DEFAULT_ORDER_TOTAL_LABEL,
+  mockOrderPreviews,
+} = require("../../seed/order.seed-data");
 
 const isDatabaseConnected = () => mongoose.connection.readyState === 1;
 
