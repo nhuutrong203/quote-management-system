@@ -1,97 +1,256 @@
-import React, { useState, useEffect, useContext } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
 
+const PARAMETER_KEYS = [
+  "boxStyle",
+  "type",
+  "dimension",
+  "fluteType",
+  "boardQuality",
+  "colors",
+  "joints",
+  "moq",
+];
+
+const PRICE_ADJUSTMENTS = {
+  boxStyle: {
+    Corrugated: 0,
+    Offset: 0.08,
+    "Offset laminated": 0.16,
+  },
+  type: {
+    RSC: 0,
+    FOL: 0.03,
+    "Two-piece": 0.07,
+    Tray: 0.05,
+    Sleeve: 0.06,
+  },
+  dimension: {
+    "ID (L x W x H mm)": 0,
+    "OD (L x W x H mm)": 0.02,
+  },
+  fluteType: {
+    B: 0.04,
+    C: 0.06,
+    E: 0.03,
+    F: 0.02,
+    BC: 0.11,
+    BE: 0.09,
+  },
+  boardQuality: {
+    "125 GSM": 0,
+    "150 GSM": 0.04,
+    "200 GSM": 0.08,
+    "250 GSM": 0.14,
+    "300 GSM": 0.2,
+  },
+  colors: {
+    "1": 0,
+    "2": 0.05,
+    "Up to 4": 0.12,
+    "4 + varnish": 0.18,
+  },
+  joints: {
+    Glue: 0,
+    Stitch: 0.04,
+  },
+};
+
+const MOQ_DISCOUNT_MULTIPLIERS = {
+  "Based on enquiry": 1,
+  "1k": 1,
+  "3k": 0.98,
+  "5k": 0.96,
+  "10k": 0.93,
+};
+
+const MOQ_QUANTITY_MAP = {
+  "Based on enquiry": 1000,
+  "1k": 1000,
+  "3k": 3000,
+  "5k": 5000,
+  "10k": 10000,
+};
+
+const buildDefaultParameterValues = (defaults = {}, fields = []) => {
+  const fieldDefaults = fields.reduce((accumulator, field) => {
+    accumulator[field.key] = field.defaultValue || field.options?.[0]?.value || "";
+    return accumulator;
+  }, {});
+
+  return PARAMETER_KEYS.reduce((accumulator, key) => {
+    accumulator[key] = defaults[key] || fieldDefaults[key] || "";
+    return accumulator;
+  }, {});
+};
+
+const buildQuoteParameterValues = (quote, defaults) => ({
+  ...defaults,
+  boxStyle: quote?.boxStyle || defaults.boxStyle,
+  type: quote?.type || defaults.type,
+  dimension: quote?.dimension || defaults.dimension,
+  fluteType: quote?.fluteType || defaults.fluteType,
+  boardQuality: quote?.boardQuality || defaults.boardQuality,
+  colors: quote?.colors || defaults.colors,
+  joints: quote?.joints || defaults.joints,
+  moq: quote?.moq || defaults.moq,
+});
+
+const mergeFieldsWithSelectedValues = (fields, values) =>
+  fields.map((field) => {
+    const selectedValue = values[field.key];
+
+    if (!selectedValue || field.options?.some((option) => option.value === selectedValue)) {
+      return field;
+    }
+
+    return {
+      ...field,
+      options: [{ value: selectedValue, label: selectedValue }, ...(field.options || [])],
+    };
+  });
+
+const getMoqQuantity = (moqValue) => {
+  if (MOQ_QUANTITY_MAP[moqValue]) {
+    return MOQ_QUANTITY_MAP[moqValue];
+  }
+
+  const normalizedValue = String(moqValue || "").toLowerCase().replace(/,/g, "").trim();
+
+  if (normalizedValue.endsWith("k")) {
+    const parsedThousands = Number(normalizedValue.replace(/[^0-9.]/g, ""));
+    if (parsedThousands > 0) {
+      return parsedThousands * 1000;
+    }
+  }
+
+  const parsedDigits = Number(normalizedValue.replace(/[^0-9.]/g, ""));
+  return parsedDigits > 0 ? parsedDigits : 1000;
+};
+
+const getCalculatedUnitPrice = (parameterValues) => {
+  let price = 0.42;
+
+  price += PRICE_ADJUSTMENTS.boxStyle[parameterValues.boxStyle] || 0;
+  price += PRICE_ADJUSTMENTS.type[parameterValues.type] || 0;
+  price += PRICE_ADJUSTMENTS.dimension[parameterValues.dimension] || 0;
+  price += PRICE_ADJUSTMENTS.fluteType[parameterValues.fluteType] || 0;
+  price += PRICE_ADJUSTMENTS.boardQuality[parameterValues.boardQuality] || 0;
+  price += PRICE_ADJUSTMENTS.colors[parameterValues.colors] || 0;
+  price += PRICE_ADJUSTMENTS.joints[parameterValues.joints] || 0;
+
+  const multiplier = MOQ_DISCOUNT_MULTIPLIERS[parameterValues.moq] || 1;
+  return Number(Math.max(price * multiplier, 0.12).toFixed(2));
+};
+
 export const QuoteForm = () => {
   const { currentUser } = useContext(AuthContext);
-  const { id } = useParams(); // exists in edit mode
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [quoteNumber, setQuoteNumber] = useState("");
-  const [formTab, setFormTab] = useState("parameters"); // "parameters" or "client"
-  
-  // Packaging Parameters
-  const [boxStyle, setBoxStyle] = useState("RSC Standard");
-  const [type, setType] = useState("Single Wall");
-  const [dimension, setDimension] = useState("40x30x30");
-  const [fluteType, setFluteType] = useState("B-Flute Single Wall");
-  const [boardQuality, setBoardQuality] = useState("K175/M/K175");
-  const [colors, setColors] = useState("2-Colors");
-  const [joints, setJoints] = useState("Glued");
-  const [moq, setMoq] = useState(5000);
-  
+  const [formTab, setFormTab] = useState("parameters");
   const [setup, setSetup] = useState({ discountRate: 5, taxRate: 10 });
+  const [parameterFields, setParameterFields] = useState([]);
+  const [parameterValues, setParameterValues] = useState({});
+  const [isLoadingForm, setIsLoadingForm] = useState(true);
 
-  // Load initial configurations, customers, and quote (if edit mode)
   useEffect(() => {
     const loadData = async () => {
-      try {
-        const custRes = await apiService.getCustomers();
-        setCustomers(custRes.data);
-        if (custRes.data.length > 0) {
-          setSelectedCustomerId(custRes.data[0].id);
-        }
+      setIsLoadingForm(true);
 
-        const setupRes = await apiService.getQuoteSetup();
-        setSetup(setupRes.data);
+      try {
+        const [customerResponse, setupResponse, optionResponse] = await Promise.all([
+          apiService.getCustomers(),
+          apiService.getQuoteSetup(),
+          apiService.getQuoteParameterOptions(),
+        ]);
+
+        const nextCustomers = customerResponse.data || [];
+        const nextFields = optionResponse.data?.fields || [];
+        const defaultParameters = buildDefaultParameterValues(
+          optionResponse.data?.defaults,
+          nextFields
+        );
+
+        setCustomers(nextCustomers);
+        setSetup(setupResponse.data || { discountRate: 5, taxRate: 10 });
+        setParameterFields(nextFields);
 
         if (id) {
-          // Edit Mode
-          const quoteRes = await apiService.getQuoteById(id);
-          const q = quoteRes.data;
-          if (q) {
-            setQuoteNumber(q.quoteNumber);
-            setSelectedCustomerId(q.customer.id);
-            setBoxStyle(q.boxStyle || "RSC Standard");
-            setType(q.type || "Single Wall");
-            setDimension(q.dimension || "40x30x30");
-            setFluteType(q.fluteType || "B-Flute Single Wall");
-            setBoardQuality(q.boardQuality || "K175/M/K175");
-            setColors(q.colors || "2-Colors");
-            setJoints(q.joints || "Glued");
-            setMoq(parseInt(q.moq?.replace(/[^0-9]/g, "")) || 5000);
-          } else {
+          const quoteResponse = await apiService.getQuoteById(id);
+          const quote = quoteResponse.data;
+
+          if (!quote) {
             navigate("/quotes");
+            return;
           }
+
+          setQuoteNumber(quote.quoteNumber);
+          setSelectedCustomerId(quote.customer?.id || nextCustomers[0]?.id || "");
+          setParameterValues(buildQuoteParameterValues(quote, defaultParameters));
         } else {
-          // Create Mode
-          const quotesRes = await apiService.getQuotes();
-          const count = quotesRes.data.length + 1;
-          setQuoteNumber(`#12${String(count).padStart(3, "0")}`);
+          const quoteResponse = await apiService.getQuotes();
+          const nextQuoteCount = (quoteResponse.data || []).length + 1;
+
+          setQuoteNumber(`#12${String(nextQuoteCount).padStart(3, "0")}`);
+          setSelectedCustomerId((currentValue) => currentValue || nextCustomers[0]?.id || "");
+          setParameterValues(defaultParameters);
         }
       } catch (error) {
         console.error("Error loading form data:", error);
+      } finally {
+        setIsLoadingForm(false);
       }
     };
+
     loadData();
   }, [id, navigate]);
 
-  // Dynamically calculate unit price based on parameters
-  const getCalculatedUnitPrice = () => {
-    let price = 10.00; // Base Price
+  const effectiveParameterFields = useMemo(
+    () => mergeFieldsWithSelectedValues(parameterFields, parameterValues),
+    [parameterFields, parameterValues]
+  );
 
-    if (type === "Double Wall") price += 5.00;
-    if (fluteType.includes("BC-Flute") || fluteType.includes("Double")) price += 3.50;
-    if (colors === "Full") price += 2.50;
-    if (joints === "Stitched") price += 1.00;
-    if (boxStyle === "Custom RSC" || boxStyle === "Die-Cut") price += 4.00;
-    if (boardQuality.includes("K275")) price += 2.00;
+  const parameterOptionsByKey = useMemo(
+    () =>
+      effectiveParameterFields.reduce((accumulator, field) => {
+        accumulator[field.key] = field.options || [];
+        return accumulator;
+      }, {}),
+    [effectiveParameterFields]
+  );
 
-    // Bulk discount on MOQ
-    if (moq >= 10000) price *= 0.85; // 15% off
-    else if (moq >= 5000) price *= 0.92; // 8% off
-
-    return parseFloat(price.toFixed(2));
+  const getParameterDisplayValue = (key) => {
+    const currentValue = parameterValues[key];
+    const matchedOption = parameterOptionsByKey[key]?.find((option) => option.value === currentValue);
+    return matchedOption?.label || currentValue || "N/A";
   };
 
-  const unitPrice = getCalculatedUnitPrice();
-  const subtotal = moq * unitPrice;
+  const updateParameterValue = (key, value) => {
+    setParameterValues((currentValues) => ({
+      ...currentValues,
+      [key]: value,
+    }));
+  };
+
+  const unitPrice = getCalculatedUnitPrice(parameterValues);
+  const moqQuantity = getMoqQuantity(parameterValues.moq);
+  const subtotal = moqQuantity * unitPrice;
   const discountAmount = subtotal * (setup.discountRate / 100);
   const taxAmount = (subtotal - discountAmount) * (setup.taxRate / 100);
   const grandTotal = subtotal - discountAmount + taxAmount;
+
+  const formatCurrency = (value) =>
+    "S$" +
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
 
   const handleSave = async (status) => {
     if (!selectedCustomerId) {
@@ -101,147 +260,237 @@ export const QuoteForm = () => {
 
     const items = [
       {
-        name: `${boxStyle} Box Production (${type}, ${fluteType})`,
-        quantity: moq,
-        unitPrice: unitPrice
-      }
+        name: `${getParameterDisplayValue("boxStyle")} Box Production (${getParameterDisplayValue(
+          "type"
+        )}, ${getParameterDisplayValue("fluteType")})`,
+        quantity: moqQuantity,
+        unitPrice,
+      },
     ];
 
     const payload = {
       quoteNumber,
       customerId: selectedCustomerId,
-      boxStyle,
-      type,
-      dimension,
-      fluteType,
-      boardQuality,
-      colors,
-      joints,
-      moq: new Intl.NumberFormat("en-US").format(moq) + " Pcs",
+      boxStyle: parameterValues.boxStyle,
+      type: parameterValues.type,
+      dimension: parameterValues.dimension,
+      fluteType: parameterValues.fluteType,
+      boardQuality: parameterValues.boardQuality,
+      colors: parameterValues.colors,
+      joints: parameterValues.joints,
+      moq: parameterValues.moq,
       items,
-      status, // "Draft" or "Pending"
-      createdBy: currentUser.id
+      status,
+      createdBy: currentUser.id,
     };
 
     try {
       if (id) {
-        // Edit mode
         await apiService.updateQuote(id, {
-          customer: customers.find((c) => c.id === selectedCustomerId),
-          boxStyle,
-          type,
-          dimension,
-          fluteType,
-          boardQuality,
-          colors,
-          joints,
-          moq: new Intl.NumberFormat("en-US").format(moq) + " Pcs",
-          items,
-          status,
+          ...payload,
           updatedBy: currentUser,
-          note: status === "Pending" ? "Sales updated specifications and submitted for HOD approval" : "Sales updated draft specifications"
+          note:
+            status === "Pending"
+              ? "Sales updated specifications and submitted for HOD approval"
+              : "Sales updated draft specifications",
         });
       } else {
-        // Create mode
         await apiService.createQuote(payload);
       }
+
       navigate("/quotes");
     } catch (error) {
       console.error("Error saving quote:", error);
     }
   };
 
-  const formatCurrency = (value) => {
-    return "S$" + new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
-  };
-
-  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId);
+  const headerTitle = id ? "Edit Quote" : "New Quote";
+  const previewStatusLabel = id ? "EDIT PREVIEW" : "DRAFT PREVIEW";
 
   return (
     <div className="fade-in" style={{ textAlign: "left" }}>
-      {/* Header bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+        }}
+      >
         <div>
-          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>AMB Order Workspace</span>
-          <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--primary)", margin: "4px 0 0 0" }}>
-            New Quote
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              color: "var(--text-secondary)",
+              textTransform: "uppercase",
+            }}
+          >
+            AMB Order Workspace
+          </span>
+          <h2
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 800,
+              color: "var(--primary)",
+              margin: "4px 0 0 0",
+            }}
+          >
+            {headerTitle}
           </h2>
         </div>
       </div>
 
       <div className="new-quote-split-container">
-        {/* Center Preview Area: Quotation Paper (A4 Invoice style) */}
         <div className="quote-preview-area">
           <div className="a4-paper">
-            {/* Header info */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--border-color)", paddingBottom: "1.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                borderBottom: "1px solid var(--border-color)",
+                paddingBottom: "1.5rem",
+              }}
+            >
               <div>
-                <h3 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--primary)", margin: 0 }}>
-                  ORDER FORM: {quoteNumber}
+                <h3
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: 800,
+                    color: "var(--primary)",
+                    margin: 0,
+                  }}
+                >
+                  ORDER FORM: {quoteNumber || "Generating..."}
                 </h3>
-                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px", display: "inline-block" }}>
-                  Date Issued: {new Date().toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}
+                <span
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "var(--text-secondary)",
+                    marginTop: "4px",
+                    display: "inline-block",
+                  }}
+                >
+                  Date Issued:{" "}
+                  {new Date().toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
                 </span>
               </div>
               <div style={{ textAlign: "right" }}>
-                <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--primary)", margin: 0 }}>AMB Packaging</h4>
-                <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Partnering for Success</span>
+                <h4
+                  style={{
+                    fontSize: "1.1rem",
+                    fontWeight: 800,
+                    color: "var(--primary)",
+                    margin: 0,
+                  }}
+                >
+                  AMB Packaging
+                </h4>
+                <span
+                  style={{
+                    fontSize: "0.6rem",
+                    fontWeight: 700,
+                    color: "var(--text-secondary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Partnering for Success
+                </span>
               </div>
             </div>
 
-            {/* Total banner box */}
             <div className="preview-highlight-banner">
               <div>
-                <div className="preview-banner-label">QUOTE TOTAL</div>
+                <div className="preview-banner-label">Quote Total</div>
                 <div className="preview-banner-value">{formatCurrency(grandTotal)}</div>
               </div>
               <div>
-                <div className="preview-banner-label" style={{ textAlign: "right" }}>STATUS</div>
-                <div className="preview-status-badge">DRAFT PREVIEW</div>
+                <div className="preview-banner-label" style={{ textAlign: "right" }}>
+                  Status
+                </div>
+                <div className="preview-status-badge">{previewStatusLabel}</div>
               </div>
             </div>
 
-            {/* Technical Parameters Table */}
             <div style={{ flex: 1 }}>
-              <h4 style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
+              <h4
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "0.75rem",
+                }}
+              >
                 Technical Specification
               </h4>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "2px solid var(--primary)", textAlign: "left", fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)" }}>
+                  <tr
+                    style={{
+                      borderBottom: "2px solid var(--primary)",
+                      textAlign: "left",
+                      fontSize: "0.75rem",
+                      textTransform: "uppercase",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
                     <th style={{ padding: "0.5rem 0.25rem" }}>Box Style</th>
                     <th style={{ padding: "0.5rem 0.25rem" }}>Type</th>
-                    <th style={{ padding: "0.5rem 0.25rem" }}>Dimension</th>
+                    <th style={{ padding: "0.5rem 0.25rem" }}>Dimensions</th>
                     <th style={{ padding: "0.5rem 0.25rem" }}>Flute</th>
                     <th style={{ padding: "0.5rem 0.25rem" }}>Board</th>
-                    <th style={{ padding: "0.5rem 0.25rem" }}>Color</th>
+                    <th style={{ padding: "0.5rem 0.25rem" }}>Colors</th>
                     <th style={{ padding: "0.5rem 0.25rem" }}>Joints</th>
                     <th style={{ padding: "0.5rem 0.25rem", textAlign: "right" }}>MOQ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr style={{ borderBottom: "1px solid var(--border-color)", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                    <td style={{ padding: "1rem 0.25rem" }}>{boxStyle}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{type}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{dimension}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{fluteType.split(" ")[0]}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{boardQuality}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{colors}</td>
-                    <td style={{ padding: "1rem 0.25rem" }}>{joints}</td>
-                    <td style={{ padding: "1rem 0.25rem", textAlign: "right" }}>{new Intl.NumberFormat("en-US").format(moq)}</td>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid var(--border-color)",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("boxStyle")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("type")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("dimension")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("fluteType")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("boardQuality")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("colors")}</td>
+                    <td style={{ padding: "1rem 0.25rem" }}>{getParameterDisplayValue("joints")}</td>
+                    <td style={{ padding: "1rem 0.25rem", textAlign: "right" }}>{getParameterDisplayValue("moq")}</td>
                   </tr>
                 </tbody>
               </table>
 
-              {/* Pricing Breakdowns */}
               <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
-                <div style={{ width: "240px", display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.8rem" }}>
+                <div
+                  style={{
+                    width: "240px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                    fontSize: "0.8rem",
+                  }}
+                >
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "var(--text-secondary)" }}>Unit Price:</span>
                     <span style={{ fontWeight: 700 }}>{formatCurrency(unitPrice)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>Base Quantity:</span>
+                    <span style={{ fontWeight: 700 }}>{new Intl.NumberFormat("en-US").format(moqQuantity)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "var(--text-secondary)" }}>Subtotal:</span>
@@ -255,7 +504,17 @@ export const QuoteForm = () => {
                     <span>GST ({setup.taxRate}%):</span>
                     <span>+{formatCurrency(taxAmount)}</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border-color)", paddingTop: "0.5rem", fontWeight: 800, fontSize: "0.9rem", color: "var(--primary)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      borderTop: "1px solid var(--border-color)",
+                      paddingTop: "0.5rem",
+                      fontWeight: 800,
+                      fontSize: "0.9rem",
+                      color: "var(--primary)",
+                    }}
+                  >
                     <span>Grand Total:</span>
                     <span>{formatCurrency(grandTotal)}</span>
                   </div>
@@ -263,48 +522,99 @@ export const QuoteForm = () => {
               </div>
             </div>
 
-            {/* Customer Details inside A4 */}
             <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "1.5rem" }}>
-              <h4 style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
+              <h4
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "0.75rem",
+                }}
+              >
                 Customer Details
               </h4>
               {selectedCustomer ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.75rem", fontSize: "0.8rem" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "0.75rem",
+                    fontSize: "0.8rem",
+                  }}
+                >
                   <div>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.65rem", textTransform: "uppercase", display: "block" }}>Company Name</span>
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        display: "block",
+                      }}
+                    >
+                      Company Name
+                    </span>
                     <span style={{ fontWeight: 700 }}>{selectedCustomer.companyName}</span>
                   </div>
                   <div>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.65rem", textTransform: "uppercase", display: "block" }}>Contact Person</span>
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        display: "block",
+                      }}
+                    >
+                      Contact Person
+                    </span>
                     <span style={{ fontWeight: 700 }}>{selectedCustomer.contactName}</span>
                   </div>
                   <div>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.65rem", textTransform: "uppercase", display: "block" }}>Email Address</span>
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        display: "block",
+                      }}
+                    >
+                      Email Address
+                    </span>
                     <span style={{ fontWeight: 600 }}>{selectedCustomer.email}</span>
                   </div>
                   <div>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.65rem", textTransform: "uppercase", display: "block" }}>Phone Number</span>
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        display: "block",
+                      }}
+                    >
+                      Phone Number
+                    </span>
                     <span style={{ fontWeight: 600 }}>{selectedCustomer.phone}</span>
                   </div>
                 </div>
               ) : (
-                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>No customer details selected.</p>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
+                  No customer details selected.
+                </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Configuration Panel */}
         <div className="quote-config-panel">
-          {/* Config Tabs */}
           <div className="config-tabs">
-            <button 
+            <button
               className={`config-tab-btn ${formTab === "parameters" ? "active" : ""}`}
               onClick={() => setFormTab("parameters")}
             >
               Parameters
             </button>
-            <button 
+            <button
               className={`config-tab-btn ${formTab === "client" ? "active" : ""}`}
               onClick={() => setFormTab("client")}
             >
@@ -313,142 +623,149 @@ export const QuoteForm = () => {
           </div>
 
           {formTab === "client" ? (
-            /* Client Details form elements */
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Client / Customer</label>
                 <select
                   className="form-control"
                   value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  onChange={(event) => setSelectedCustomerId(event.target.value)}
                 >
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.companyName}
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.companyName}
                     </option>
                   ))}
                 </select>
               </div>
 
               {selectedCustomer && (
-                <div style={{ backgroundColor: "var(--bg-app)", padding: "1rem", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
+                <div
+                  style={{
+                    backgroundColor: "var(--bg-app)",
+                    padding: "1rem",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                    fontSize: "0.85rem",
+                  }}
+                >
                   <div>
-                    <strong style={{ fontSize: "0.7rem", color: "var(--text-secondary)", textTransform: "uppercase" }}>Contact Person:</strong>
+                    <strong
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-secondary)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Contact Person:
+                    </strong>
                     <div style={{ fontWeight: 600, marginTop: "2px" }}>{selectedCustomer.contactName}</div>
                   </div>
                   <div>
-                    <strong style={{ fontSize: "0.7rem", color: "var(--text-secondary)", textTransform: "uppercase" }}>Email:</strong>
+                    <strong
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-secondary)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Email:
+                    </strong>
                     <div style={{ fontWeight: 600, marginTop: "2px" }}>{selectedCustomer.email}</div>
                   </div>
                   <div>
-                    <strong style={{ fontSize: "0.7rem", color: "var(--text-secondary)", textTransform: "uppercase" }}>Address:</strong>
-                    <div style={{ fontWeight: 600, marginTop: "2px", lineHeight: "1.4" }}>{selectedCustomer.address}</div>
+                    <strong
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-secondary)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Address:
+                    </strong>
+                    <div style={{ fontWeight: 600, marginTop: "2px", lineHeight: "1.4" }}>
+                      {selectedCustomer.address}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            /* Packaging Specification Parameters form elements */
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Box Style</label>
-                <select className="form-control" value={boxStyle} onChange={(e) => setBoxStyle(e.target.value)}>
-                  <option value="RSC Standard">RSC Standard</option>
-                  <option value="Die-Cut">Die-Cut</option>
-                  <option value="Custom RSC">Custom RSC</option>
-                  <option value="Double Wall Master">Double Wall Master</option>
-                  <option value="Corrugated">Corrugated</option>
-                  <option value="Poly-Lined">Poly-Lined</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Type</label>
-                <select className="form-control" value={type} onChange={(e) => setType(e.target.value)}>
-                  <option value="Single Wall">Single Wall</option>
-                  <option value="Double Wall">Double Wall</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Dimensions (LxWxH)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Length x Width x Height (e.g. 40x30x30)"
-                  value={dimension}
-                  onChange={(e) => setDimension(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Flute Type</label>
-                <select className="form-control" value={fluteType} onChange={(e) => setFluteType(e.target.value)}>
-                  <option value="B-Flute Single Wall">B-Flute Single Wall</option>
-                  <option value="E-Flute Micro">E-Flute Micro</option>
-                  <option value="BC-Flute Double">BC-Flute Double</option>
-                  <option value="B Flute">B Flute</option>
-                  <option value="C Flute">C Flute</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Board Quality</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Linner(GSM), e.g. K175/M/K175"
-                  value={boardQuality}
-                  onChange={(e) => setBoardQuality(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Number Of Colors</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. 2-Colors"
-                  value={colors}
-                  onChange={(e) => setColors(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Joints</label>
-                <select className="form-control" value={joints} onChange={(e) => setJoints(e.target.value)}>
-                  <option value="Glued">Glued</option>
-                  <option value="Stitched">Stitched</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Minimum Order Qty (MOQ)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="1"
-                  value={moq}
-                  onChange={(e) => setMoq(parseInt(e.target.value) || 0)}
-                />
-              </div>
+              {isLoadingForm && effectiveParameterFields.length === 0 ? (
+                <div
+                  style={{
+                    padding: "1rem",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "var(--bg-app)",
+                    color: "var(--text-secondary)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Loading parameter options...
+                </div>
+              ) : (
+                effectiveParameterFields.map((field) => (
+                  <div className="form-group" style={{ margin: 0 }} key={field.key}>
+                    <label className="form-label">{field.label}</label>
+                    <select
+                      className="form-control"
+                      value={parameterValues[field.key] || ""}
+                      onChange={(event) => updateParameterValue(field.key, event.target.value)}
+                    >
+                      {field.options?.map((option) => (
+                        <option key={`${field.key}-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
-          {/* Config Footer Summary & Actions */}
           <div className="config-footer-summary">
             <div>
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>QUOTE TOTAL</div>
-              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--primary)", marginTop: "2px" }}>{formatCurrency(grandTotal)}</div>
+              <div
+                style={{
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  textTransform: "uppercase",
+                }}
+              >
+                Quote Total
+              </div>
+              <div
+                style={{
+                  fontSize: "1.35rem",
+                  fontWeight: 800,
+                  color: "var(--primary)",
+                  marginTop: "2px",
+                }}
+              >
+                {formatCurrency(grandTotal)}
+              </div>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <Link to="/quotes" className="btn btn-secondary btn-sm" style={{ padding: "0.5rem 0.85rem" }}>
                 Cancel
               </Link>
-              <button onClick={() => handleSave("Draft")} className="btn btn-secondary btn-sm" style={{ padding: "0.5rem 0.85rem" }}>
+              <button
+                onClick={() => handleSave("Draft")}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: "0.5rem 0.85rem" }}
+              >
                 Draft
               </button>
-              <button onClick={() => handleSave("Pending")} className="btn btn-primary btn-sm" style={{ padding: "0.5rem 0.85rem" }}>
+              <button
+                onClick={() => handleSave("Pending")}
+                className="btn btn-primary btn-sm"
+                style={{ padding: "0.5rem 0.85rem" }}
+              >
                 Save Quote
               </button>
             </div>

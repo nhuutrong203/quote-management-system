@@ -222,22 +222,22 @@ export const QuoteList = () => {
                   </div>
 
                   <div className="desktop-quote-card-title-row">
-                    <div className="desktop-quote-card-id">Quote ID: {q.quoteNumber}</div>
+                    <div className="desktop-quote-card-id">{q.quoteNumber}</div>
                     <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
                   </div>
 
                   <div className="desktop-quote-card-specs">
                     <div className="desktop-quote-card-spec-item">
                       <span className="desktop-quote-card-spec-label">Box Style</span>
-                      <span className="desktop-quote-card-spec-value">{q.boxStyle || "Custom RSC"}</span>
+                      <span className="desktop-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
                     </div>
                     <div className="desktop-quote-card-spec-item">
                       <span className="desktop-quote-card-spec-label">Flute</span>
-                      <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B-Flute Single"}</span>
+                      <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B"}</span>
                     </div>
                     <div className="desktop-quote-card-spec-item">
                       <span className="desktop-quote-card-spec-label">MOQ</span>
-                      <span className="desktop-quote-card-spec-value">{q.moq || "5,000 Pcs"}</span>
+                      <span className="desktop-quote-card-spec-value">{q.moq || "5k"}</span>
                     </div>
                   </div>
 
@@ -291,15 +291,15 @@ export const QuoteList = () => {
                   <div className="mobile-quote-card-specs">
                     <div className="mobile-quote-card-spec-row">
                       <span className="mobile-quote-card-spec-label">Box Style</span>
-                      <span className="mobile-quote-card-spec-value">{q.boxStyle || "RSC (Standard)"}</span>
+                      <span className="mobile-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
                     </div>
                     <div className="mobile-quote-card-spec-row">
                       <span className="mobile-quote-card-spec-label">Flute Type</span>
-                      <span className="mobile-quote-card-spec-value">{q.fluteType || "B-Flute Single Wall"}</span>
+                      <span className="mobile-quote-card-spec-value">{q.fluteType || "B"}</span>
                     </div>
                     <div className="mobile-quote-card-spec-row">
                       <span className="mobile-quote-card-spec-label">MOQ</span>
-                      <span className="mobile-quote-card-spec-value">{q.moq || "5,000 Units"}</span>
+                      <span className="mobile-quote-card-spec-value">{q.moq || "5k"}</span>
                     </div>
                   </div>
 
@@ -379,13 +379,13 @@ export const QuoteList = () => {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                       </svg>
-                      {q.items[0]?.boxType || "Corrugated"}
+                      {q.boxStyle || "Corrugated"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                       </svg>
-                      {q.boxStyle || "RSC"}
+                      {q.type || "RSC"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -394,7 +394,7 @@ export const QuoteList = () => {
                         <line x1="10" y1="3" x2="8" y2="21"></line>
                         <line x1="16" y1="3" x2="14" y2="21"></line>
                       </svg>
-                      {q.fluteType?.split(" ")[0] || "B Flute"}
+                      {q.fluteType || "B"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -403,7 +403,7 @@ export const QuoteList = () => {
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                       </svg>
-                      {q.moq || "3,000 pcs"}
+                      {q.moq || "3k"}
                     </div>
                   </div>
 

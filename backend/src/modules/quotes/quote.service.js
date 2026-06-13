@@ -4,6 +4,26 @@ const formatCurrency = (amount) => {
   return `S$${Number(amount || 0).toLocaleString("en-SG")}`;
 };
 
+const parseMoqQuantity = (value) => {
+  const normalized = String(value || "").toLowerCase().replace(/,/g, "").trim();
+
+  if (!normalized) {
+    return 1;
+  }
+
+  if (normalized === "based on enquiry") {
+    return 1000;
+  }
+
+  if (normalized.endsWith("k")) {
+    const parsedThousands = Number(normalized.replace(/[^0-9.]/g, ""));
+    return parsedThousands > 0 ? parsedThousands * 1000 : 1;
+  }
+
+  const parsedDigits = Number(normalized.replace(/[^0-9.]/g, ""));
+  return parsedDigits > 0 ? parsedDigits : 1;
+};
+
 const sanitizeUser = (user) => {
   if (!user) return null;
 
@@ -30,11 +50,10 @@ const sanitizeCustomer = (customer) => {
 };
 
 const buildDefaultItem = (quote) => {
-  const moqValue = Number(String(quote.parameters?.moq || "0").replace(/[^0-9.]/g, ""));
-  const safeQuantity = moqValue > 0 ? moqValue : 1;
+  const safeQuantity = parseMoqQuantity(quote.parameters?.moq);
 
   return {
-    name: `${quote.parameters?.boxStyle || "Packaging"} Box Production`,
+    name: `${quote.parameters?.boxStyle || "Corrugated"} Box Production`,
     quantity: safeQuantity,
     unitPrice: Number((quote.totalPlaceholder || 0) / safeQuantity),
   };
@@ -78,18 +97,18 @@ const mapQuoteToClientDTO = (quote) => {
     createdAt: quote.createdAt,
     createdBy,
     statusLabel: quote.status === "Approved" ? "Active" : quote.status,
-    boxStyle: quote.parameters?.boxStyle || "N/A",
-    type: quote.type || "Single Wall",
-    dimension: quote.dimension || "40x30x30",
-    fluteType: quote.parameters?.flute || "N/A",
-    boardQuality: quote.boardQuality || "N/A",
-    colors: quote.colors || "N/A",
-    joints: quote.joints || "N/A",
-    moq: quote.parameters?.moq || "N/A",
+    boxStyle: quote.parameters?.boxStyle || "Corrugated",
+    type: quote.type || "RSC",
+    dimension: quote.dimension || "ID (L x W x H mm)",
+    fluteType: quote.parameters?.flute || "B",
+    boardQuality: quote.boardQuality || "150 GSM",
+    colors: quote.colors || "2",
+    joints: quote.joints || "Glue",
+    moq: quote.parameters?.moq || "5k",
     parameters: {
-      boxStyle: quote.parameters?.boxStyle || "N/A",
-      flute: quote.parameters?.flute || "N/A",
-      moq: quote.parameters?.moq || "N/A",
+      boxStyle: quote.parameters?.boxStyle || "Corrugated",
+      flute: quote.parameters?.flute || "B",
+      moq: quote.parameters?.moq || "5k",
     },
     items,
     history,
@@ -131,15 +150,15 @@ const createQuote = async (payload) => {
     customerId: payload.customerId,
     status: payload.status || "Draft",
     parameters: {
-      boxStyle: payload.boxStyle || payload.parameters?.boxStyle || "N/A",
-      flute: payload.fluteType || payload.parameters?.flute || "N/A",
-      moq: payload.moq || payload.parameters?.moq || "N/A",
+      boxStyle: payload.boxStyle || payload.parameters?.boxStyle || "Corrugated",
+      flute: payload.fluteType || payload.parameters?.flute || "B",
+      moq: payload.moq || payload.parameters?.moq || "5k",
     },
-    type: payload.type || "Single Wall",
-    dimension: payload.dimension || "40x30x30",
-    boardQuality: payload.boardQuality || "N/A",
-    colors: payload.colors || "N/A",
-    joints: payload.joints || "N/A",
+    type: payload.type || "RSC",
+    dimension: payload.dimension || "ID (L x W x H mm)",
+    boardQuality: payload.boardQuality || "150 GSM",
+    colors: payload.colors || "2",
+    joints: payload.joints || "Glue",
     items: payload.items || [],
     totalPlaceholder,
     createdBy: payload.createdBy,

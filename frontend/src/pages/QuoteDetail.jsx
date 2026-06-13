@@ -64,7 +64,7 @@ export const QuoteDetail = () => {
   };
 
   const handleConvertToOrder = () => {
-    alert(`Successfully converted quote ${quote.quoteNumber} to order ORD-${quote.quoteNumber.replace("#", "")}!`);
+    navigate(`/orders/preview/${quote.id}`);
   };
 
   if (loading) {
@@ -187,35 +187,35 @@ export const QuoteDetail = () => {
         <div className="specs-panel">
           <div className="spec-badge-box">
             <span className="spec-badge-label">Box Style</span>
-            <span className="spec-badge-value">{quote.boxStyle || "Custom RSC"}</span>
+            <span className="spec-badge-value">{quote.boxStyle || "Corrugated"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Type</span>
-            <span className="spec-badge-value">{quote.type || "Single Wall"}</span>
+            <span className="spec-badge-value">{quote.type || "RSC"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Dimension</span>
-            <span className="spec-badge-value" style={{ fontFamily: "monospace" }}>{quote.dimension || "40x30x30"}</span>
+            <span className="spec-badge-value" style={{ fontFamily: "monospace" }}>{quote.dimension || "ID (L x W x H mm)"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Flute Type</span>
-            <span className="spec-badge-value">{quote.fluteType || "B-Flute Single Wall"}</span>
+            <span className="spec-badge-value">{quote.fluteType || "B"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Board Quality</span>
-            <span className="spec-badge-value">{quote.boardQuality || "K175/M/K175"}</span>
+            <span className="spec-badge-value">{quote.boardQuality || "150 GSM"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Colors</span>
-            <span className="spec-badge-value">{quote.colors || "2-Colors"}</span>
+            <span className="spec-badge-value">{quote.colors || "2"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">Joints</span>
-            <span className="spec-badge-value">{quote.joints || "Glued"}</span>
+            <span className="spec-badge-value">{quote.joints || "Glue"}</span>
           </div>
           <div className="spec-badge-box">
             <span className="spec-badge-label">MOQ</span>
-            <span className="spec-badge-value">{quote.moq || "5,000 Pcs"}</span>
+            <span className="spec-badge-value">{quote.moq || "5k"}</span>
           </div>
         </div>
       </div>
