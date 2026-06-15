@@ -46,6 +46,8 @@ export const Dashboard = () => {
           actionCount++;
         } else if (currentUser.role === "GM" && q.status === "PendingApproval") {
           actionCount++;
+        } else if (currentUser.role === "Planning" && q.status === "Approved") {
+          actionCount++;
         }
       });
 
@@ -113,6 +115,7 @@ export const Dashboard = () => {
             {currentUser.role === "HOD" && `You have ${stats.pendingAction} quotes pending Head of Department approval.`}
             {currentUser.role === "SC_HEAD" && `You have ${stats.pendingAction} quotes pending Supply Chain Head unit price review.`}
             {currentUser.role === "GM" && `You have ${stats.pendingAction} quotes pending General Manager final approval.`}
+            {currentUser.role === "Planning" && `You have ${stats.pendingAction} approved quotes ready for planning review.`}
           </p>
         </div>
         {currentUser.role === "Sales" && (

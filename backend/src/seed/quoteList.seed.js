@@ -9,26 +9,220 @@ const Quote = require("../modules/quotes/quote.model");
 const Order = require("../modules/orders/order.model");
 const { DEFAULT_ORDER_TOTAL_LABEL } = require("./order.seed-data");
 
+const quoteSpecs = [
+  {
+    boxStyle: "Corrugated",
+    type: "RSC",
+    dimension: "ID 400x300x200",
+    fluteType: "B",
+    boardQuality: "125 GSM",
+    colors: "4 colors",
+    joints: "Glue",
+    moq: "5000",
+    quantity: 5000,
+    unitPrice: 0.52,
+  },
+  {
+    boxStyle: "Corrugated",
+    type: "FOL",
+    dimension: "OD 600x400x300",
+    fluteType: "C",
+    boardQuality: "150 GSM",
+    colors: "2 colors",
+    joints: "Stitch",
+    moq: "3000",
+    quantity: 3000,
+    unitPrice: 0.68,
+  },
+  {
+    boxStyle: "Offset",
+    type: "Offset",
+    dimension: "ID 250x180x120",
+    fluteType: "N-A",
+    boardQuality: "250 GSM",
+    colors: "4 + varnish",
+    joints: "Glue",
+    moq: "10000",
+    quantity: 10000,
+    unitPrice: 0.95,
+  },
+  {
+    boxStyle: "Offset laminated",
+    type: "Two-piece",
+    dimension: "ID 520x310x210",
+    fluteType: "BE",
+    boardQuality: "300 GSM",
+    colors: "Up to 4",
+    joints: "Glue",
+    moq: "1000",
+    quantity: 1000,
+    unitPrice: 1.24,
+  },
+];
+
+const buildItemName = (spec) =>
+  `${spec.boxStyle} ${spec.type} carton (${spec.dimension}, ${spec.fluteType})`;
+
+const buildQuoteItem = (spec, overrides = {}) => ({
+  name: buildItemName(spec),
+  boxStyle: spec.boxStyle,
+  type: spec.type,
+  dimension: spec.dimension,
+  fluteType: spec.fluteType,
+  boardQuality: spec.boardQuality,
+  colors: spec.colors,
+  joints: spec.joints,
+  moq: spec.moq,
+  quantity: spec.quantity,
+  unitPrice: spec.unitPrice,
+  ...overrides,
+});
+
+const buildClientDetails = (customer, overrides = {}) => ({
+  companyName: customer.companyName,
+  companyAddress: customer.address,
+  contactPerson: customer.contactName,
+  phoneNumber: customer.phone,
+  email: customer.email,
+  billingAddress: overrides.billingAddress || customer.address,
+  deliveryAddress: overrides.deliveryAddress || customer.address,
+});
+
+const quoteBlueprints = [
+  { quoteNumber: "#12001", status: "Draft", customerIndex: 0, itemIndexes: [0], note: "Draft quote saved by Sales." },
+  { quoteNumber: "#12002", status: "Draft", customerIndex: 1, itemIndexes: [1, 2], note: "Draft quote with two SKU rows." },
+  { quoteNumber: "#12003", status: "Pending", customerIndex: 2, itemIndexes: [0], note: "Submitted to HOD for review." },
+  { quoteNumber: "#12004", status: "Pending", customerIndex: 3, itemIndexes: [2], note: "Waiting in HOD approval queue." },
+  { quoteNumber: "#12005", status: "Processing", customerIndex: 0, itemIndexes: [1], note: "HOD approved and routed to SC Head." },
+  { quoteNumber: "#12006", status: "Processing", customerIndex: 1, itemIndexes: [3, 0], note: "SC pricing review in progress." },
+  { quoteNumber: "#12007", status: "PendingApproval", customerIndex: 2, itemIndexes: [2], note: "SC Head approved and routed to GM." },
+  { quoteNumber: "#12008", status: "PendingApproval", customerIndex: 3, itemIndexes: [0, 1], note: "Pending GM sign-off." },
+  { quoteNumber: "#12009", status: "Approved", customerIndex: 0, itemIndexes: [0], note: "GM approved the quote." },
+  { quoteNumber: "#12010", status: "Approved", customerIndex: 1, itemIndexes: [1, 2, 3], note: "Approved quote ready for order conversion." },
+  { quoteNumber: "#12011", status: "AskedForEdit", customerIndex: 2, itemIndexes: [3], note: "SC Head asked Sales to revise board quality." },
+  { quoteNumber: "#12012", status: "AskedForEdit", customerIndex: 3, itemIndexes: [1, 0], note: "HOD sent back for MOQ clarification." },
+  { quoteNumber: "#12013", status: "Rejected", customerIndex: 0, itemIndexes: [2], note: "Rejected due to unsupported print treatment." },
+  { quoteNumber: "#12014", status: "Rejected", customerIndex: 1, itemIndexes: [0], note: "Rejected after commercial review." },
+];
+
+const buildHistory = ({ status, salesUserId, hodUserId, scHeadUserId, gmUserId, createdAt, note }) => {
+  const history = [
+    {
+      status: "Draft",
+      updatedBy: salesUserId,
+      updatedAt: createdAt,
+      note: "Quote created by Sales.",
+    },
+  ];
+
+  const approvalHistory = [
+    {
+      actorId: salesUserId,
+      actorName: "Siow",
+      actorEmail: "siow@amb.com.sg",
+      actorRole: "Sales",
+      action: status === "Pending" ? "Submitted" : "Created",
+      fromStatus: status === "Pending" ? "Draft" : "",
+      toStatus: status === "Pending" ? "Pending" : "Draft",
+      note: status === "Pending" ? "Submitted to HOD queue." : "Draft quote created.",
+      timestamp: createdAt,
+    },
+  ];
+
+  if (["Pending", "Processing", "PendingApproval", "Approved", "AskedForEdit", "Rejected"].includes(status)) {
+    history.push({
+      status: "Pending",
+      updatedBy: salesUserId,
+      updatedAt: new Date(createdAt.getTime() + 30 * 60 * 1000),
+      note: "Submitted to HOD for approval.",
+    });
+  }
+
+  if (["Processing", "PendingApproval", "Approved", "AskedForEdit", "Rejected"].includes(status)) {
+    history.push({
+      status: status === "AskedForEdit" ? "AskedForEdit" : "Processing",
+      updatedBy: hodUserId,
+      updatedAt: new Date(createdAt.getTime() + 90 * 60 * 1000),
+      note:
+        status === "AskedForEdit"
+          ? "HOD sent back for revision."
+          : "HOD approved and moved to SC Head queue.",
+    });
+
+    approvalHistory.push({
+      actorId: hodUserId,
+      actorName: "HOD Singapore",
+      actorEmail: "hod@amb.com.sg",
+      actorRole: "HOD",
+      action: status === "AskedForEdit" ? "Sent Back" : "Approved",
+      fromStatus: "Pending",
+      toStatus: status === "AskedForEdit" ? "AskedForEdit" : "Processing",
+      note:
+        status === "AskedForEdit"
+          ? "Please revise MOQ assumptions."
+          : "Moved to SC Head queue.",
+      timestamp: new Date(createdAt.getTime() + 90 * 60 * 1000),
+    });
+  }
+
+  if (["PendingApproval", "Approved", "Rejected"].includes(status)) {
+    history.push({
+      status: "PendingApproval",
+      updatedBy: scHeadUserId,
+      updatedAt: new Date(createdAt.getTime() + 150 * 60 * 1000),
+      note: "SC Head approved and routed to GM.",
+    });
+
+    approvalHistory.push({
+      actorId: scHeadUserId,
+      actorName: "SC Head Singapore",
+      actorEmail: "schead@amb.com.sg",
+      actorRole: "SC_HEAD",
+      action: "Approved",
+      fromStatus: "Processing",
+      toStatus: "PendingApproval",
+      note: "Moved to GM queue.",
+      timestamp: new Date(createdAt.getTime() + 150 * 60 * 1000),
+    });
+  }
+
+  if (["Approved", "Rejected"].includes(status)) {
+    history.push({
+      status,
+      updatedBy: gmUserId,
+      updatedAt: new Date(createdAt.getTime() + 210 * 60 * 1000),
+      note,
+    });
+
+    approvalHistory.push({
+      actorId: gmUserId,
+      actorName: "GM Singapore",
+      actorEmail: "gm@amb.com.sg",
+      actorRole: "GM",
+      action: status === "Approved" ? "Approved" : "Sent Back",
+      fromStatus: "PendingApproval",
+      toStatus: status,
+      note,
+      timestamp: new Date(createdAt.getTime() + 210 * 60 * 1000),
+    });
+  }
+
+  return { history, approvalHistory };
+};
+
 const seedQuoteListData = async () => {
   try {
     await connectDatabase();
 
-    const mockUserEmails = [
-      "siow@amb.com.sg",
-      "hod@amb.com.sg",
-      "schead@amb.com.sg",
-      "gm@amb.com.sg",
-    ];
-
+    const mockUserEmails = ["siow@amb.com.sg", "hod@amb.com.sg", "schead@amb.com.sg", "gm@amb.com.sg", "planning@amb.com.sg"];
     const mockCustomerNames = [
       "AMB Packaging Logistics",
       "Singapore Food Industry Ltd",
       "Changi Electronics Hub",
       "Jurong Fresh Produce Pte Ltd",
     ];
-
-    const mockQuoteNumbers = ["#12001", "#12002", "#12003", "#12004", "#12005", "#12006", "#12007", "#12008", "#12009", "#12010"];
-    const mockOrderNumbers = ["ORD-12001", "ORD-12002", "ORD-12003", "ORD-12004", "ORD-12005", "ORD-12006", "ORD-12007", "ORD-12008", "ORD-12009", "ORD-12010"];
+    const mockQuoteNumbers = quoteBlueprints.map((entry) => entry.quoteNumber);
+    const mockOrderNumbers = quoteBlueprints.map((entry) => `ORD-${entry.quoteNumber.replace(/^#/, "")}`);
 
     await User.deleteMany({ email: { $in: mockUserEmails } });
     await Customer.deleteMany({ companyName: { $in: mockCustomerNames } });
@@ -36,30 +230,11 @@ const seedQuoteListData = async () => {
     await Order.deleteMany({ orderNumber: { $in: mockOrderNumbers } });
 
     const users = await User.insertMany([
-      {
-        name: "Siow",
-        email: "siow@amb.com.sg",
-        password: "demo1234",
-        role: "Sales",
-      },
-      {
-        name: "HOD Singapore",
-        email: "hod@amb.com.sg",
-        password: "demo1234",
-        role: "HOD",
-      },
-      {
-        name: "SC Head Singapore",
-        email: "schead@amb.com.sg",
-        password: "demo1234",
-        role: "SC_HEAD",
-      },
-      {
-        name: "GM Singapore",
-        email: "gm@amb.com.sg",
-        password: "demo1234",
-        role: "GM",
-      },
+      { name: "Siow", email: "siow@amb.com.sg", password: "demo1234", role: "Sales" },
+      { name: "HOD Singapore", email: "hod@amb.com.sg", password: "demo1234", role: "HOD" },
+      { name: "SC Head Singapore", email: "schead@amb.com.sg", password: "demo1234", role: "SC_HEAD" },
+      { name: "GM Singapore", email: "gm@amb.com.sg", password: "demo1234", role: "GM" },
+      { name: "Planning Singapore", email: "planning@amb.com.sg", password: "demo1234", role: "Planning" },
     ]);
 
     const customers = await Customer.insertMany([
@@ -102,532 +277,109 @@ const seedQuoteListData = async () => {
     const scHeadUser = users.find((user) => user.role === "SC_HEAD");
     const gmUser = users.find((user) => user.role === "GM");
 
-    const quotes = await Quote.insertMany([
-      {
-        quoteNumber: "#12001",
-        customerId: customers[0]._id,
-        status: "Approved",
-        parameters: {
-          boxStyle: "Corrugated",
-          flute: "B",
-          moq: "5k",
-        },
-        type: "RSC",
-        dimension: "ID (L x W x H mm)",
-        boardQuality: "150 GSM",
-        colors: "2",
-        joints: "Glue",
-        items: [{ name: "Corrugated RSC Box Production (B)", quantity: 5000, unitPrice: 0.55 }],
-        totalPlaceholder: 2750,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-08T10:30:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-08T11:00:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Processing", updatedBy: hodUser._id, updatedAt: new Date("2026-06-08T13:00:00.000Z"), note: "HOD approved and forwarded to SC Head." },
-          { status: "PendingApproval", updatedBy: scHeadUser._id, updatedAt: new Date("2026-06-08T14:00:00.000Z"), note: "SC Head cleared the pricing review." },
-          { status: "Approved", updatedBy: gmUser._id, updatedAt: new Date("2026-06-08T14:30:00.000Z"), note: "GM approved the quotation." },
-        ],
-        createdAt: new Date("2026-06-08T10:30:00.000Z"),
-        updatedAt: new Date("2026-06-08T14:30:00.000Z"),
-      },
-      {
-        quoteNumber: "#12002",
-        customerId: customers[1]._id,
-        status: "Pending",
-        parameters: {
-          boxStyle: "Offset",
-          flute: "E",
-          moq: "3k",
-        },
-        type: "Sleeve",
-        dimension: "OD (L x W x H mm)",
-        boardQuality: "200 GSM",
-        colors: "Up to 4",
-        joints: "Glue",
-        items: [{ name: "Offset Sleeve Box Production (E)", quantity: 3000, unitPrice: 0.78 }],
-        totalPlaceholder: 2340,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-09T08:15:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-09T09:15:00.000Z"), note: "Waiting for HOD approval." },
-        ],
-        createdAt: new Date("2026-06-09T08:15:00.000Z"),
-        updatedAt: new Date("2026-06-09T09:15:00.000Z"),
-      },
-      {
-        quoteNumber: "#12003",
-        customerId: customers[2]._id,
-        status: "Processing",
-        parameters: {
-          boxStyle: "Offset laminated",
-          flute: "BC",
-          moq: "1k",
-        },
-        type: "Two-piece",
-        dimension: "ID (L x W x H mm)",
-        boardQuality: "250 GSM",
-        colors: "4 + varnish",
-        joints: "Stitch",
-        items: [{ name: "Offset laminated Two-piece Box Production (BC)", quantity: 1000, unitPrice: 1.18 }],
-        totalPlaceholder: 1180,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-07T14:20:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-07T15:00:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Processing", updatedBy: hodUser._id, updatedAt: new Date("2026-06-07T15:30:00.000Z"), note: "HOD approved and sent to SC Head." },
-        ],
-        createdAt: new Date("2026-06-07T14:20:00.000Z"),
-        updatedAt: new Date("2026-06-07T15:30:00.000Z"),
-      },
-      {
-        quoteNumber: "#12004",
-        customerId: customers[3]._id,
-        status: "PendingApproval",
-        parameters: {
-          boxStyle: "Corrugated",
-          flute: "C",
-          moq: "10k",
-        },
-        type: "Tray",
-        dimension: "OD (L x W x H mm)",
-        boardQuality: "200 GSM",
-        colors: "1",
-        joints: "Glue",
-        items: [{ name: "Corrugated Tray Box Production (C)", quantity: 10000, unitPrice: 0.63 }],
-        totalPlaceholder: 6300,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-06T10:45:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-06T11:10:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Processing", updatedBy: hodUser._id, updatedAt: new Date("2026-06-06T12:05:00.000Z"), note: "HOD approved and forwarded to SC Head." },
-          { status: "PendingApproval", updatedBy: scHeadUser._id, updatedAt: new Date("2026-06-06T13:20:00.000Z"), note: "Pricing review completed by SC Head." },
-        ],
-        createdAt: new Date("2026-06-06T10:45:00.000Z"),
-        updatedAt: new Date("2026-06-06T13:20:00.000Z"),
-      },
-      {
-        quoteNumber: "#12005",
-        customerId: customers[0]._id,
-        status: "AskedForEdit",
-        parameters: {
-          boxStyle: "Corrugated",
-          flute: "BE",
-          moq: "Based on enquiry",
-        },
-        type: "FOL",
-        dimension: "ID (L x W x H mm)",
-        boardQuality: "125 GSM",
-        colors: "2",
-        joints: "Stitch",
-        items: [{ name: "Corrugated FOL Box Production (BE)", quantity: 1000, unitPrice: 0.67 }],
-        totalPlaceholder: 670,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-05T10:00:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-05T11:00:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "AskedForEdit", updatedBy: hodUser._id, updatedAt: new Date("2026-06-05T12:00:00.000Z"), note: "Please revise MOQ assumptions and unit price." },
-        ],
-        createdAt: new Date("2026-06-05T10:00:00.000Z"),
-        updatedAt: new Date("2026-06-05T12:00:00.000Z"),
-      },
-      {
-        quoteNumber: "#12006",
-        customerId: customers[1]._id,
-        status: "Rejected",
-        parameters: {
-          boxStyle: "Offset",
-          flute: "F",
-          moq: "5k",
-        },
-        type: "Tray",
-        dimension: "OD (L x W x H mm)",
-        boardQuality: "300 GSM",
-        colors: "Up to 4",
-        joints: "Glue",
-        items: [{ name: "Offset Tray Box Production (F)", quantity: 5000, unitPrice: 0.92 }],
-        totalPlaceholder: 4600,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-04T09:00:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-04T10:00:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Rejected", updatedBy: hodUser._id, updatedAt: new Date("2026-06-04T11:30:00.000Z"), note: "Rejected due to budget mismatch with the enquiry." },
-        ],
-        createdAt: new Date("2026-06-04T09:00:00.000Z"),
-        updatedAt: new Date("2026-06-04T11:30:00.000Z"),
-      },
-      {
-        quoteNumber: "#12007",
-        customerId: customers[0]._id,
-        status: "Approved",
-        parameters: {
-          boxStyle: "Offset laminated",
-          flute: "BE",
-          moq: "10k",
-        },
-        type: "Sleeve",
-        dimension: "ID (L x W x H mm)",
-        boardQuality: "250 GSM",
-        colors: "4 + varnish",
-        joints: "Glue",
-        items: [{ name: "Offset laminated Sleeve Box Production (BE)", quantity: 10000, unitPrice: 0.88 }],
-        totalPlaceholder: 8800,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-03T09:00:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-03T09:30:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Processing", updatedBy: hodUser._id, updatedAt: new Date("2026-06-03T10:10:00.000Z"), note: "HOD approved and forwarded to SC Head." },
-          { status: "PendingApproval", updatedBy: scHeadUser._id, updatedAt: new Date("2026-06-03T10:45:00.000Z"), note: "Pricing review completed by SC Head." },
-          { status: "Approved", updatedBy: gmUser._id, updatedAt: new Date("2026-06-03T11:00:00.000Z"), note: "GM approved the quotation." },
-        ],
-        createdAt: new Date("2026-06-03T09:00:00.000Z"),
-        updatedAt: new Date("2026-06-03T11:00:00.000Z"),
-      },
-      {
-        quoteNumber: "#12008",
-        customerId: customers[3]._id,
-        status: "Approved",
-        parameters: {
-          boxStyle: "Corrugated",
-          flute: "BC",
-          moq: "3k",
-        },
-        type: "RSC",
-        dimension: "OD (L x W x H mm)",
-        boardQuality: "200 GSM",
-        colors: "2",
-        joints: "Stitch",
-        items: [{ name: "Corrugated RSC Box Production (BC)", quantity: 3000, unitPrice: 0.84 }],
-        totalPlaceholder: 2520,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-02T08:20:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-02T08:50:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Processing", updatedBy: hodUser._id, updatedAt: new Date("2026-06-02T09:25:00.000Z"), note: "HOD approved and forwarded to SC Head." },
-          { status: "PendingApproval", updatedBy: scHeadUser._id, updatedAt: new Date("2026-06-02T10:05:00.000Z"), note: "Pricing review completed by SC Head." },
-          { status: "Approved", updatedBy: gmUser._id, updatedAt: new Date("2026-06-02T10:30:00.000Z"), note: "GM approved the quotation." },
-        ],
-        createdAt: new Date("2026-06-02T08:20:00.000Z"),
-        updatedAt: new Date("2026-06-02T10:30:00.000Z"),
-      },
-      {
-        quoteNumber: "#12009",
-        customerId: customers[2]._id,
-        status: "Rejected",
-        parameters: {
-          boxStyle: "Offset",
-          flute: "E",
-          moq: "Based on enquiry",
-        },
-        type: "FOL",
-        dimension: "ID (L x W x H mm)",
-        boardQuality: "125 GSM",
-        colors: "1",
-        joints: "Glue",
-        items: [{ name: "Offset FOL Box Production (E)", quantity: 1000, unitPrice: 0.59 }],
-        totalPlaceholder: 590,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-06-01T13:00:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-06-01T13:30:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Rejected", updatedBy: hodUser._id, updatedAt: new Date("2026-06-01T14:10:00.000Z"), note: "Rejected due to unconfirmed enquiry scope." },
-        ],
-        createdAt: new Date("2026-06-01T13:00:00.000Z"),
-        updatedAt: new Date("2026-06-01T14:10:00.000Z"),
-      },
-      {
-        quoteNumber: "#12010",
-        customerId: customers[1]._id,
-        status: "Rejected",
-        parameters: {
-          boxStyle: "Corrugated",
-          flute: "C",
-          moq: "5k",
-        },
-        type: "Two-piece",
-        dimension: "OD (L x W x H mm)",
-        boardQuality: "300 GSM",
-        colors: "Up to 4",
-        joints: "Stitch",
-        items: [{ name: "Corrugated Two-piece Box Production (C)", quantity: 5000, unitPrice: 0.96 }],
-        totalPlaceholder: 4800,
-        createdBy: salesUser._id,
-        history: [
-          { status: "Draft", updatedBy: salesUser._id, updatedAt: new Date("2026-05-31T11:00:00.000Z"), note: "Quote created by Sales." },
-          { status: "Pending", updatedBy: salesUser._id, updatedAt: new Date("2026-05-31T11:40:00.000Z"), note: "Submitted to HOD for approval." },
-          { status: "Rejected", updatedBy: hodUser._id, updatedAt: new Date("2026-05-31T12:15:00.000Z"), note: "Rejected after commercial review." },
-        ],
-        createdAt: new Date("2026-05-31T11:00:00.000Z"),
-        updatedAt: new Date("2026-05-31T12:15:00.000Z"),
-      },
-    ]);
+    const quotesPayload = quoteBlueprints.map((blueprint, index) => {
+      const createdAt = new Date(`2026-06-${String(1 + index).padStart(2, "0")}T09:00:00.000Z`);
+      const customer = customers[blueprint.customerIndex];
+      const items = blueprint.itemIndexes.map((itemIndex, itemOffset) =>
+        buildQuoteItem(quoteSpecs[itemIndex], {
+          name: `${buildItemName(quoteSpecs[itemIndex])} SKU-${itemOffset + 1}`,
+        })
+      );
+      const totalPlaceholder = items.reduce(
+        (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+        0
+      );
+      const leadItem = items[0];
+      const clientDetails = buildClientDetails(customer, {
+        deliveryAddress:
+          blueprint.customerIndex % 2 === 0
+            ? `${customer.address} - Warehouse Bay ${blueprint.customerIndex + 1}`
+            : customer.address,
+      });
+      const { history, approvalHistory } = buildHistory({
+        status: blueprint.status,
+        salesUserId: salesUser._id,
+        hodUserId: hodUser._id,
+        scHeadUserId: scHeadUser._id,
+        gmUserId: gmUser._id,
+        createdAt,
+        note: blueprint.note,
+      });
 
-    await Order.insertMany([
-      {
-        orderNumber: "ORD-12001",
-        quoteId: quotes[0]._id,
-        customerId: customers[0]._id,
+      return {
+        quoteNumber: blueprint.quoteNumber,
+        customerId: customer._id,
+        clientDetails,
+        status: blueprint.status,
+        parameters: {
+          boxStyle: leadItem.boxStyle,
+          flute: leadItem.fluteType,
+          moq: leadItem.moq,
+        },
+        type: leadItem.type,
+        dimension: leadItem.dimension,
+        boardQuality: leadItem.boardQuality,
+        colors: leadItem.colors,
+        joints: leadItem.joints,
+        items,
+        totalPlaceholder,
+        createdBy: salesUser._id,
+        history,
+        approvalHistory,
+        createdAt,
+        updatedAt: history[history.length - 1].updatedAt,
+      };
+    });
+
+    const quotes = await Quote.insertMany(quotesPayload);
+
+    const approvedQuotes = quotes.filter((quote) => quote.status === "Approved");
+
+    if (approvedQuotes.length > 0) {
+      const orderPayload = approvedQuotes.map((quote) => ({
+        orderNumber: `ORD-${quote.quoteNumber.replace(/^#/, "")}`,
+        quoteId: quote._id,
+        customerId: quote.customerId,
         status: "Draft",
         orderDetails: {
-          boxStyle: "Corrugated",
-          type: "RSC",
-          dimension: "ID (L x W x H mm)",
-          fluteType: "B",
-          boardQuality: "150 GSM",
-          colors: "2",
-          joints: "Glue",
-          moq: "5k",
+          boxStyle: quote.items[0].boxStyle,
+          type: quote.items[0].type,
+          dimension: quote.items[0].dimension,
+          fluteType: quote.items[0].fluteType,
+          boardQuality: quote.items[0].boardQuality,
+          colors: quote.items[0].colors,
+          joints: quote.items[0].joints,
+          moq: quote.items[0].moq,
         },
+        orderDetailsRows: quote.items.map((item) => ({
+          boxStyle: item.boxStyle,
+          type: item.type,
+          dimension: item.dimension,
+          fluteType: item.fluteType,
+          boardQuality: item.boardQuality,
+          colors: item.colors,
+          joints: item.joints,
+          moq: item.moq,
+        })),
         quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
         customerSnapshot: {
-          companyName: customers[0].companyName,
-          contactName: customers[0].contactName,
-          email: customers[0].email,
-          phone: customers[0].phone,
-          address: customers[0].address,
+          companyName: quote.clientDetails.companyName,
+          contactName: quote.clientDetails.contactPerson,
+          email: quote.clientDetails.email,
+          phone: quote.clientDetails.phoneNumber,
+          address: quote.clientDetails.companyAddress,
+          billingAddress: quote.clientDetails.billingAddress,
+          deliveryAddress: quote.clientDetails.deliveryAddress,
         },
-        createdAt: new Date("2026-06-08T15:15:00.000Z"),
-        updatedAt: new Date("2026-06-08T15:15:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12002",
-        quoteId: quotes[1]._id,
-        customerId: customers[1]._id,
-        status: "Draft",
-        orderDetails: {
-          boxStyle: "Offset",
-          type: "Sleeve",
-          dimension: "OD (L x W x H mm)",
-          fluteType: "E",
-          boardQuality: "200 GSM",
-          colors: "Up to 4",
-          joints: "Glue",
-          moq: "3k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[1].companyName,
-          contactName: customers[1].contactName,
-          email: customers[1].email,
-          phone: customers[1].phone,
-          address: customers[1].address,
-        },
-        createdAt: new Date("2026-06-09T10:15:00.000Z"),
-        updatedAt: new Date("2026-06-09T10:15:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12003",
-        quoteId: quotes[2]._id,
-        customerId: customers[2]._id,
-        status: "Submitted",
-        orderDetails: {
-          boxStyle: "Offset laminated",
-          type: "Two-piece",
-          dimension: "ID (L x W x H mm)",
-          fluteType: "BC",
-          boardQuality: "250 GSM",
-          colors: "4 + varnish",
-          joints: "Stitch",
-          moq: "1k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[2].companyName,
-          contactName: customers[2].contactName,
-          email: customers[2].email,
-          phone: customers[2].phone,
-          address: customers[2].address,
-        },
-        createdAt: new Date("2026-06-07T16:00:00.000Z"),
-        updatedAt: new Date("2026-06-07T16:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12004",
-        quoteId: quotes[3]._id,
-        customerId: customers[3]._id,
-        status: "Submitted",
-        orderDetails: {
-          boxStyle: "Corrugated",
-          type: "Tray",
-          dimension: "OD (L x W x H mm)",
-          fluteType: "C",
-          boardQuality: "200 GSM",
-          colors: "1",
-          joints: "Glue",
-          moq: "10k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[3].companyName,
-          contactName: customers[3].contactName,
-          email: customers[3].email,
-          phone: customers[3].phone,
-          address: customers[3].address,
-        },
-        createdAt: new Date("2026-06-06T14:00:00.000Z"),
-        updatedAt: new Date("2026-06-06T14:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12005",
-        quoteId: quotes[4]._id,
-        customerId: customers[0]._id,
-        status: "Processing",
-        orderDetails: {
-          boxStyle: "Corrugated",
-          type: "FOL",
-          dimension: "ID (L x W x H mm)",
-          fluteType: "BE",
-          boardQuality: "125 GSM",
-          colors: "2",
-          joints: "Stitch",
-          moq: "Based on enquiry",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[0].companyName,
-          contactName: customers[0].contactName,
-          email: customers[0].email,
-          phone: customers[0].phone,
-          address: customers[0].address,
-        },
-        createdAt: new Date("2026-06-05T13:00:00.000Z"),
-        updatedAt: new Date("2026-06-05T13:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12006",
-        quoteId: quotes[5]._id,
-        customerId: customers[1]._id,
-        status: "Processing",
-        orderDetails: {
-          boxStyle: "Offset",
-          type: "Tray",
-          dimension: "OD (L x W x H mm)",
-          fluteType: "F",
-          boardQuality: "300 GSM",
-          colors: "Up to 4",
-          joints: "Glue",
-          moq: "5k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[1].companyName,
-          contactName: customers[1].contactName,
-          email: customers[1].email,
-          phone: customers[1].phone,
-          address: customers[1].address,
-        },
-        createdAt: new Date("2026-06-04T12:00:00.000Z"),
-        updatedAt: new Date("2026-06-04T12:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12007",
-        quoteId: quotes[6]._id,
-        customerId: customers[0]._id,
-        status: "Completed",
-        orderDetails: {
-          boxStyle: "Offset laminated",
-          type: "Sleeve",
-          dimension: "ID (L x W x H mm)",
-          fluteType: "BE",
-          boardQuality: "250 GSM",
-          colors: "4 + varnish",
-          joints: "Glue",
-          moq: "10k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[0].companyName,
-          contactName: customers[0].contactName,
-          email: customers[0].email,
-          phone: customers[0].phone,
-          address: customers[0].address,
-        },
-        createdAt: new Date("2026-06-03T12:00:00.000Z"),
-        updatedAt: new Date("2026-06-03T12:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12008",
-        quoteId: quotes[7]._id,
-        customerId: customers[3]._id,
-        status: "Completed",
-        orderDetails: {
-          boxStyle: "Corrugated",
-          type: "RSC",
-          dimension: "OD (L x W x H mm)",
-          fluteType: "BC",
-          boardQuality: "200 GSM",
-          colors: "2",
-          joints: "Stitch",
-          moq: "3k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[3].companyName,
-          contactName: customers[3].contactName,
-          email: customers[3].email,
-          phone: customers[3].phone,
-          address: customers[3].address,
-        },
-        createdAt: new Date("2026-06-02T11:00:00.000Z"),
-        updatedAt: new Date("2026-06-02T11:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12009",
-        quoteId: quotes[8]._id,
-        customerId: customers[2]._id,
-        status: "Cancelled",
-        orderDetails: {
-          boxStyle: "Offset",
-          type: "FOL",
-          dimension: "ID (L x W x H mm)",
-          fluteType: "E",
-          boardQuality: "125 GSM",
-          colors: "1",
-          joints: "Glue",
-          moq: "Based on enquiry",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[2].companyName,
-          contactName: customers[2].contactName,
-          email: customers[2].email,
-          phone: customers[2].phone,
-          address: customers[2].address,
-        },
-        createdAt: new Date("2026-06-01T15:00:00.000Z"),
-        updatedAt: new Date("2026-06-01T15:00:00.000Z"),
-      },
-      {
-        orderNumber: "ORD-12010",
-        quoteId: quotes[9]._id,
-        customerId: customers[1]._id,
-        status: "Cancelled",
-        orderDetails: {
-          boxStyle: "Corrugated",
-          type: "Two-piece",
-          dimension: "OD (L x W x H mm)",
-          fluteType: "C",
-          boardQuality: "300 GSM",
-          colors: "Up to 4",
-          joints: "Stitch",
-          moq: "5k",
-        },
-        quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-        customerSnapshot: {
-          companyName: customers[1].companyName,
-          contactName: customers[1].contactName,
-          email: customers[1].email,
-          phone: customers[1].phone,
-          address: customers[1].address,
-        },
-        createdAt: new Date("2026-05-31T13:00:00.000Z"),
-        updatedAt: new Date("2026-05-31T13:00:00.000Z"),
-      },
-    ]);
+      }));
 
-    console.log("Quote and order seed data inserted successfully.");
+      await Order.insertMany(orderPayload);
+    }
+
+    console.log(`Seeded ${users.length} users, ${customers.length} customers, ${quotes.length} quotes.`);
     process.exit(0);
   } catch (error) {
-    console.error("Seed failed:", error);
+    console.error("Error seeding quote list data:", error);
     process.exit(1);
   }
 };

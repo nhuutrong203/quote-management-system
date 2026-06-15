@@ -94,10 +94,7 @@ export const OrderFormPreview = () => {
         <div className="order-preview-header">
           <div className="order-preview-brand">
             <div className="order-preview-logo">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="10" x2="2" y2="10"></line>
-                <path d="M12 22V2l10 8H2z"></path>
-              </svg>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem" }}>AMB</span>
             </div>
             <div>
               <div className="order-preview-brand-title">AMB Packaging</div>
@@ -111,9 +108,7 @@ export const OrderFormPreview = () => {
           <div>
             <div className="order-preview-eyebrow">Order Form</div>
             <h3 className="order-preview-order-number">ORDER FORM {orderPreview.quoteNumber}</h3>
-            <div className="order-preview-quote-reference">
-              Order ID: {orderPreview.orderId}
-            </div>
+            <div className="order-preview-quote-reference">Order ID: {orderPreview.orderId}</div>
           </div>
           <div className="order-preview-total-card">
             <span className="order-preview-total-label">Quote Total</span>
@@ -133,11 +128,13 @@ export const OrderFormPreview = () => {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  {DETAIL_COLUMNS.map((column) => (
-                    <td key={column.key}>{orderPreview.orderDetails[column.key]}</td>
-                  ))}
-                </tr>
+                {orderPreview.orderDetailsRows.map((row, rowIndex) => (
+                  <tr key={`row-${rowIndex}`}>
+                    {DETAIL_COLUMNS.map((column) => (
+                      <td key={`${column.key}-${rowIndex}`}>{row[column.key]}</td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -163,15 +160,17 @@ export const OrderFormPreview = () => {
               <span className="order-preview-customer-value">{orderPreview.customer.phone}</span>
             </div>
             <div className="order-preview-customer-card order-preview-customer-card-wide">
-              <span className="order-preview-customer-label">Address</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.address}</span>
+              <span className="order-preview-customer-label">Billing Address</span>
+              <span className="order-preview-customer-value">{orderPreview.customer.billingAddress}</span>
+            </div>
+            <div className="order-preview-customer-card order-preview-customer-card-wide">
+              <span className="order-preview-customer-label">Delivery Address</span>
+              <span className="order-preview-customer-value">{orderPreview.customer.deliveryAddress}</span>
             </div>
           </div>
         </div>
 
-        <div className="order-preview-footer-note">
-          SC print view prep shell. Layout only, ready for downstream print/PDF work.
-        </div>
+        <div className="order-preview-footer-note">SC print view prep shell. Layout only, ready for downstream print/PDF work.</div>
       </div>
     </div>
   );

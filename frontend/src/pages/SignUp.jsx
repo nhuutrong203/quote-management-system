@@ -293,6 +293,7 @@ export const SignUp = () => {
                 <option value="HOD">HOD</option>
                 <option value="SC_HEAD">SC Head</option>
                 <option value="GM">GM</option>
+                <option value="Planning">Planning</option>
               </select>
             </div>
 

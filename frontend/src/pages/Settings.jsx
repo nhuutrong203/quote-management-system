@@ -36,6 +36,7 @@ export const Settings = () => {
             <option value="HOD">Head Of Dept (HOD)</option>
             <option value="SC_HEAD">Supply Chain Head (SC_HEAD)</option>
             <option value="GM">General Manager (GM)</option>
+            <option value="Planning">Planning Department</option>
           </select>
         </div>
 

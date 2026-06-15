@@ -71,6 +71,19 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
+    orderDetailsRows: [
+      {
+        boxStyle: { type: String, trim: true, default: "Corrugated" },
+        type: { type: String, trim: true, default: "RSC" },
+        dimension: { type: String, trim: true, default: "ID (L x W x H mm)" },
+        fluteType: { type: String, trim: true, default: "B" },
+        boardQuality: { type: String, trim: true, default: "150 GSM" },
+        colors: { type: String, trim: true, default: "2" },
+        joints: { type: String, trim: true, default: "Glue" },
+        moq: { type: String, trim: true, default: "5k" },
+      },
+    ],
+
     quoteTotalLabel: {
       type: String,
       trim: true,
@@ -99,6 +112,16 @@ const orderSchema = new mongoose.Schema(
         default: "",
       },
       address: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      billingAddress: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      deliveryAddress: {
         type: String,
         trim: true,
         default: "",
