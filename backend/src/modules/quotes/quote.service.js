@@ -348,6 +348,12 @@ const updateQuote = async (quoteId, payload) => {
     return null;
   }
 
+  if (!["Draft", "AskedForEdit"].includes(quote.status)) {
+    const error = new Error("Only Draft or AskedForEdit quotes can be edited by Sales");
+    error.statusCode = 409;
+    throw error;
+  }
+
   const normalizedPayload = await normalizeQuotePayload(payload, quote);
 
   quote.customerId = normalizedPayload.customerId;

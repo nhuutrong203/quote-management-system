@@ -113,7 +113,7 @@ export const Dashboard = () => {
           <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             {currentUser.role === "Sales" && "Start creating packaging quotes or manage resubmissions."}
             {currentUser.role === "HOD" && `You have ${stats.pendingAction} quotes pending Head of Department approval.`}
-            {currentUser.role === "SC_HEAD" && `You have ${stats.pendingAction} quotes pending Supply Chain Head unit price review.`}
+            {currentUser.role === "SC_HEAD" && `You have ${stats.pendingAction} quotes pending Supply Chain Head review.`}
             {currentUser.role === "GM" && `You have ${stats.pendingAction} quotes pending General Manager final approval.`}
             {currentUser.role === "Planning" && `You have ${stats.pendingAction} approved quotes ready for planning review.`}
           </p>
@@ -231,10 +231,7 @@ export const Dashboard = () => {
                     <div className="mobile-quote-card-header">
                       <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</span>
                       <span className={`status-badge status-${q.status}`}>
-                        {q.status === "Pending" ? "Pending" : 
-                         q.status === "Processing" ? "Active" :
-                         q.status === "PendingApproval" ? "Active" : 
-                         q.status === "Approved" ? "Active" : q.status}
+                        {translateStatus(q.status)}
                       </span>
                     </div>
                     
@@ -290,7 +287,9 @@ export const Dashboard = () => {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
             {rejectedAndEditQuotes.map((q) => {
-              const latestLog = q.history[q.history.length - 1];
+              const latestLog =
+                q.approvalHistory[q.approvalHistory.length - 1] ||
+                q.history[q.history.length - 1];
               const isEdit = q.status === "AskedForEdit";
               
               return (
@@ -332,7 +331,7 @@ export const Dashboard = () => {
 
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
-                    {currentUser.role === "Sales" && (
+                    {currentUser.role === "Sales" && isEdit && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
                     )}
                   </div>

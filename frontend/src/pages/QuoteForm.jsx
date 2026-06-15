@@ -203,6 +203,12 @@ export const QuoteForm = () => {
   const [isLoadingForm, setIsLoadingForm] = useState(true);
 
   useEffect(() => {
+    if (currentUser?.role && currentUser.role !== "Sales") {
+      navigate("/quotes", { replace: true });
+    }
+  }, [currentUser, navigate]);
+
+  useEffect(() => {
     const loadData = async () => {
       setIsLoadingForm(true);
 

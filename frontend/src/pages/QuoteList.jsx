@@ -187,13 +187,15 @@ export const QuoteList = () => {
           </button>
 
           {/* New Quote Button */}
-          <Link to="/quotes/new" className="btn btn-primary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            New Quote
-          </Link>
+          {currentUser.role === "Sales" && (
+            <Link to="/quotes/new" className="btn btn-primary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              New Quote
+            </Link>
+          )}
         </div>
       </div>
 
@@ -275,11 +277,7 @@ export const QuoteList = () => {
                   <div className="mobile-quote-card-header">
                     <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</span>
                     <span className={`status-badge status-${q.status}`}>
-                      {q.status === "Pending" ? "Pending" : 
-                       q.status === "Processing" ? "Active" :
-                       q.status === "PendingApproval" ? "Active" : 
-                       q.status === "Approved" ? "Active" : 
-                       q.status === "AskedForEdit" ? "Edit Req" : q.status}
+                      {translateStatus(q.status)}
                     </span>
                   </div>
                   
@@ -347,7 +345,9 @@ export const QuoteList = () => {
         ) : (
           <div className="rejected-quotes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem" }}>
             {rejectedAndEditQuotes.map((q) => {
-              const latestLog = q.history[q.history.length - 1];
+              const latestLog =
+                q.approvalHistory[q.approvalHistory.length - 1] ||
+                q.history[q.history.length - 1];
               const isEdit = q.status === "AskedForEdit";
               
               return (
@@ -415,7 +415,7 @@ export const QuoteList = () => {
 
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "auto" }}>
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
-                    {currentUser.role === "Sales" && (
+                    {currentUser.role === "Sales" && isEdit && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
                     )}
                   </div>

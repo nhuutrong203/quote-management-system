@@ -147,6 +147,7 @@ export const Layout = () => {
                 <option value="HOD">HOD (Head of Dept)</option>
                 <option value="SC_HEAD">SC Head (Supply Chain)</option>
                 <option value="GM">GM (General Manager)</option>
+                <option value="Planning">Planning Department</option>
               </select>
             </div>
 
@@ -200,6 +201,7 @@ export const Layout = () => {
                   <option value="HOD">HOD (Head of Dept)</option>
                   <option value="SC_HEAD">SC Head (Supply Chain)</option>
                   <option value="GM">GM (General Manager)</option>
+                  <option value="Planning">Planning Department</option>
                 </select>
               </div>
 

@@ -58,7 +58,15 @@ const getQuoteById = async (req, res, next) => {
 
 const createQuote = async (req, res, next) => {
   try {
-    const { quoteNumber, customerId, createdBy, totalPlaceholder, clientDetails } = req.body;
+    const { quoteNumber, customerId, totalPlaceholder, clientDetails } = req.body;
+    const createdBy = req.user?.id;
+
+    if (!req.user || req.user.role !== "Sales") {
+      return res.status(403).json({
+        status: "FAILED",
+        message: "Only Sales can create quotes",
+      });
+    }
 
     if (!quoteNumber || !customerId || !createdBy) {
       return res.status(400).json({
@@ -90,7 +98,10 @@ const createQuote = async (req, res, next) => {
       });
     }
 
-    const quote = await quoteService.createQuote(req.body);
+    const quote = await quoteService.createQuote({
+      ...req.body,
+      createdBy,
+    });
 
     res.status(201).json({
       status: "OK",
@@ -111,7 +122,15 @@ const updateQuote = async (req, res, next) => {
       });
     }
 
-    const { customerId, updatedBy, createdBy, totalPlaceholder, clientDetails } = req.body;
+    const { customerId, totalPlaceholder, clientDetails } = req.body;
+    const updatedBy = req.user?.id;
+
+    if (!req.user || req.user.role !== "Sales") {
+      return res.status(403).json({
+        status: "FAILED",
+        message: "Only Sales can edit quotes",
+      });
+    }
 
     if (customerId && !mongoose.isValidObjectId(customerId)) {
       return res.status(400).json({
@@ -124,13 +143,6 @@ const updateQuote = async (req, res, next) => {
       return res.status(400).json({
         status: "FAILED",
         message: "updatedBy must be a valid ObjectId value",
-      });
-    }
-
-    if (createdBy && !mongoose.isValidObjectId(createdBy)) {
-      return res.status(400).json({
-        status: "FAILED",
-        message: "createdBy must be a valid ObjectId value",
       });
     }
 
@@ -152,7 +164,10 @@ const updateQuote = async (req, res, next) => {
       }
     }
 
-    const quote = await quoteService.updateQuote(req.params.id, req.body);
+    const quote = await quoteService.updateQuote(req.params.id, {
+      ...req.body,
+      updatedBy,
+    });
 
     if (!quote) {
       return res.status(404).json({

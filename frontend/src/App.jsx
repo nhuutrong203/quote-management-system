@@ -26,6 +26,24 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const RoleProtectedRoute = ({ children, allowedRoles }) => {
+  const { currentUser, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div style={{ padding: "3rem", textAlign: "center" }}>Loading System...</div>;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!allowedRoles.includes(currentUser.role)) {
+    return <Navigate to="/quotes" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -49,8 +67,22 @@ function App() {
 
             {/* Quotes Routing */}
             <Route path="quotes" element={<QuoteList />} />
-            <Route path="quotes/new" element={<QuoteForm />} />
-            <Route path="quotes/edit/:id" element={<QuoteForm />} />
+            <Route
+              path="quotes/new"
+              element={
+                <RoleProtectedRoute allowedRoles={["Sales"]}>
+                  <QuoteForm />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="quotes/edit/:id"
+              element={
+                <RoleProtectedRoute allowedRoles={["Sales"]}>
+                  <QuoteForm />
+                </RoleProtectedRoute>
+              }
+            />
             <Route path="quotes/:id" element={<QuoteDetail />} />
             <Route path="orders/preview/:quoteId" element={<OrderFormPreview />} />
             
