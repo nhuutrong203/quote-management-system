@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
+import StatusBadge from "../components/StatusBadge";
 
 export const QuoteDetail = () => {
   const { id } = useParams();
@@ -131,9 +132,7 @@ export const QuoteDetail = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <h2>Quote: {quote.quoteNumber}</h2>
-          <span className={`status-badge status-${quote.status}`}>
-            {translateStatus(quote.status)}
-          </span>
+          <StatusBadge status={quote.status} />
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <Link to="/quotes" className="btn btn-secondary">Back</Link>

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
+import StatusBadge from "../components/StatusBadge";
 
 export const Dashboard = () => {
   const { currentUser } = useContext(AuthContext);
   const [quotes, setQuotes] = useState([]);
+  const [showArchive, setShowArchive] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pendingAction: 0,
@@ -176,9 +178,7 @@ export const Dashboard = () => {
                   <div key={q.id} className="desktop-quote-card fade-in">
                     <div className="desktop-quote-card-header">
                       <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
-                      <span className={`status-badge status-${q.status}`}>
-                        {translateStatus(q.status)}
-                      </span>
+                      <StatusBadge status={q.status} />
                     </div>
 
                     <div className="desktop-quote-card-title-row">
@@ -227,12 +227,12 @@ export const Dashboard = () => {
                   <div key={q.id} className="mobile-quote-card fade-in">
                     <div className="mobile-quote-card-header">
                       <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</span>
-                      <span className={`status-badge status-${q.status}`}>
+                      <StatusBadge status={q.status}>
                         {q.status === "Pending" ? "Pending" : 
                          q.status === "Processing" ? "Active" :
                          q.status === "PendingApproval" ? "Active" : 
                          q.status === "Approved" ? "Active" : q.status}
-                      </span>
+                      </StatusBadge>
                     </div>
                     
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -277,66 +277,84 @@ export const Dashboard = () => {
       <div style={{ textAlign: "left" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h2>Rejected & Resubmit Queue</h2>
-          <a href="#" onClick={(e) => e.preventDefault()} style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}>View Archive</a>
+          <a 
+            href="#" 
+            onClick={(e) => { e.preventDefault(); setShowArchive(!showArchive); }} 
+            style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}
+          >
+            {showArchive ? "Hide Archive" : "View Archive"}
+          </a>
         </div>
 
-        {rejectedAndEditQuotes.length === 0 ? (
-          <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
-            No rejected or changes-requested quotes in the archive queue.
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
-            {rejectedAndEditQuotes.map((q) => {
-              const latestLog = q.history[q.history.length - 1];
-              const isEdit = q.status === "AskedForEdit";
-              
-              return (
-                <div key={q.id} className="card" style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)", padding: "1.25rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-                    <div>
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>
-                        Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {formatMobileQuoteNumber(q.quoteNumber)}
-                      </span>
-                      <h3 style={{ margin: "4px 0 0 0", fontSize: "1.1rem" }}>
-                        {isEdit ? "Asked for edit" : latestLog?.note || "Budget Constraint"}
-                      </h3>
-                    </div>
-                    <span className={`status-badge status-${q.status}`}>
-                      {isEdit ? "Edit Required" : "Rejected"}
-                    </span>
-                  </div>
+        {showArchive && (
+          rejectedAndEditQuotes.length === 0 ? (
+            <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
+              No rejected or changes-requested quotes in the archive queue.
+            </div>
+          ) : (
+            <div className="rejected-quotes-grid">
+              {rejectedAndEditQuotes.map((q) => {
+                const latestLog = q.history[q.history.length - 1];
+                const isEdit = q.status === "AskedForEdit";
+                const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+                const discount = subtotal * 0.05;
+                const tax = (subtotal - discount) * 0.1;
+                const total = subtotal - discount + tax;
 
-                  <div style={{ display: "flex", gap: "1.5rem", padding: "0.75rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", marginBottom: "1rem" }}>
-                    <div>
-                      <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Style</div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.boxStyle || "Corrugated"}</div>
+                return (
+                  <div
+                    key={q.id}
+                    className="desktop-quote-card fade-in"
+                    style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)" }}
+                  >
+                    <div className="desktop-quote-card-header">
+                      <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
+                      <StatusBadge status={q.status} />
                     </div>
-                    <div>
-                      <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Flute</div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.fluteType || "B"}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>MOQ</div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700 }}>{q.moq || "3k"}</div>
-                    </div>
-                  </div>
 
-                  {latestLog?.note && (
-                    <p style={{ fontSize: "0.8rem", fontStyle: "italic", marginBottom: "1rem", color: "var(--text-secondary)" }}>
-                      "{latestLog.note}"
-                    </p>
-                  )}
+                    <div className="desktop-quote-card-title-row">
+                      <div className="desktop-quote-card-id">{q.quoteNumber}</div>
+                      <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
+                    </div>
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-                    <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
-                    {currentUser.role === "Sales" && (
-                      <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
+                    <div className="desktop-quote-card-specs">
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">Box Style</span>
+                        <span className="desktop-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
+                      </div>
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">Flute</span>
+                        <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B"}</span>
+                      </div>
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">MOQ</span>
+                        <span className="desktop-quote-card-spec-value">{q.moq || "3k"}</span>
+                      </div>
+                    </div>
+
+                    {latestLog?.note && (
+                      <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: isEdit ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
+                        Reason: "{latestLog.note}"
+                      </div>
                     )}
+
+                    <div className="desktop-quote-card-footer">
+                      <div className="desktop-quote-card-total-group">
+                        <span className="desktop-quote-card-total-label">Total Quote:</span>
+                        <span className="desktop-quote-card-total-value">{formatCurrency(total)}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>Details</Link>
+                        {currentUser.role === "Sales" && (
+                          <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>Resubmit</Link>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
