@@ -3,11 +3,24 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
 
+const STATUS_FILTER_OPTIONS = [
+  { value: "Draft", label: "Draft" },
+  { value: "Pending", label: "Pending HOD" },
+  { value: "Processing", label: "Pending SC" },
+  { value: "PendingApproval", label: "Pending GM" },
+  { value: "Approved", label: "Approved" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "AskedForEdit", label: "Edit Required" },
+];
+
 export const QuoteList = () => {
   const { currentUser } = useContext(AuthContext);
   const [quotes, setQuotes] = useState([]);
   const [filteredQuotes, setFilteredQuotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [draftStatuses, setDraftStatuses] = useState([]);
   const [activeTab, setActiveTab] = useState("quotes"); // "quotes" is active by default as in Figma
 
   const fetchQuotes = async () => {
@@ -20,6 +33,29 @@ export const QuoteList = () => {
     }
   };
 
+  const toggleDraftStatus = (status) => {
+    setDraftStatuses((currentStatuses) =>
+      currentStatuses.includes(status)
+        ? currentStatuses.filter((item) => item !== status)
+        : [...currentStatuses, status]
+    );
+  };
+
+  const openFilterPanel = () => {
+    setDraftStatuses(selectedStatuses);
+    setIsFilterOpen((currentValue) => !currentValue);
+  };
+
+  const applyStatusFilter = () => {
+    setSelectedStatuses(draftStatuses);
+    setIsFilterOpen(false);
+  };
+
+  const resetStatusFilter = () => {
+    setDraftStatuses([]);
+    setSelectedStatuses([]);
+  };
+
   useEffect(() => {
     fetchQuotes();
   }, []);
@@ -30,40 +66,60 @@ export const QuoteList = () => {
 
     // Search query filter
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (q) =>
-          q.quoteNumber.toLowerCase().includes(query) ||
-          q.customer.companyName.toLowerCase().includes(query) ||
-          q.customer.contactName.toLowerCase().includes(query)
-      );
+      const query = searchQuery.trim().toLowerCase();
+
+      result = result.filter((q) => {
+        const quoteNumber = String(q.quoteNumber || "").toLowerCase();
+
+        const companyName = String(
+          q.companyName || q.customer?.companyName || ""
+        ).toLowerCase();
+
+        const contactName = String(
+          q.contactName || q.customer?.contactName || ""
+        ).toLowerCase();
+
+        return (
+          quoteNumber.includes(query) ||
+          companyName.includes(query) ||
+          contactName.includes(query)
+        );
+      });
+    }
+
+    // Status checkbox filter
+    if (selectedStatuses.length > 0) {
+      result = result.filter((q) => selectedStatuses.includes(q.status));
     }
 
     // Tab filter
-    if (activeTab === "active_orders") {
-      result = result.filter(
-        (q) =>
-          q.status === "Pending" ||
-          q.status === "Processing" ||
-          q.status === "PendingApproval"
-      );
-    } else if (activeTab === "quotes") {
-      // In Figma "Quotes" tab shows active/approved orders, excluding rejected/edit required which are at the bottom
-      result = result.filter(
-        (q) =>
-          q.status !== "Rejected" &&
-          q.status !== "AskedForEdit"
-      );
-    } else if (activeTab === "upcoming") {
-      result = [];
-    } else if (activeTab === "on_hold") {
-      result = [];
-    } else if (activeTab === "cancelled") {
-      result = [];
+    // If status filter is active, status filter takes priority so Rejected/Edit Required can still appear.
+    if (selectedStatuses.length === 0) {
+      if (activeTab === "active_orders") {
+        result = result.filter(
+          (q) =>
+            q.status === "Pending" ||
+            q.status === "Processing" ||
+            q.status === "PendingApproval"
+        );
+      } else if (activeTab === "quotes") {
+        // In Figma "Quotes" tab shows active/approved quotes, excluding rejected/edit required which are at the bottom
+        result = result.filter(
+          (q) =>
+            q.status !== "Rejected" &&
+            q.status !== "AskedForEdit"
+        );
+      } else if (activeTab === "upcoming") {
+        result = [];
+      } else if (activeTab === "on_hold") {
+        result = [];
+      } else if (activeTab === "cancelled") {
+        result = [];
+      }
     }
 
     setFilteredQuotes(result);
-  }, [searchQuery, activeTab, quotes]);
+  }, [searchQuery, selectedStatuses, activeTab, quotes]);
 
   const formatCurrency = (value) => {
     return "S$" + new Intl.NumberFormat("en-US", {
@@ -73,7 +129,7 @@ export const QuoteList = () => {
   };
 
   const formatMobileQuoteNumber = (num) => {
-    return num.replace("#", "#QT-");
+    return String(num || "").replace("#", "#QT-");
   };
 
   const translateStatus = (status) => {
@@ -84,14 +140,20 @@ export const QuoteList = () => {
     return status;
   };
 
+  const isStatusFilterApplied = selectedStatuses.length > 0;
+
   // Separate active/approved quotes from rejected/edit-required quotes
-  const activeQuotesList = filteredQuotes.filter(
-    (q) => q.status !== "Rejected" && q.status !== "AskedForEdit"
-  );
-  
-  const rejectedAndEditQuotes = quotes.filter(
-    (q) => q.status === "Rejected" || q.status === "AskedForEdit"
-  );
+  const activeQuotesList = isStatusFilterApplied
+    ? filteredQuotes
+    : filteredQuotes.filter(
+        (q) => q.status !== "Rejected" && q.status !== "AskedForEdit"
+      );
+
+  const rejectedAndEditQuotes = isStatusFilterApplied
+    ? []
+    : quotes.filter(
+        (q) => q.status === "Rejected" || q.status === "AskedForEdit"
+      );
 
   return (
     <div className="fade-in">
@@ -179,15 +241,25 @@ export const QuoteList = () => {
           </div>
 
           {/* Filter Button */}
-          <button className="btn btn-secondary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={openFilterPanel}
+            style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
             </svg>
             Filter
+            {selectedStatuses.length > 0 && (
+              <span style={{ fontSize: "0.75rem", fontWeight: 800 }}>
+                ({selectedStatuses.length})
+              </span>
+            )}
           </button>
 
           {/* New Quote Button */}
-          {currentUser.role === "Sales" && (
+          {currentUser?.role === "Sales" && (
             <Link to="/quotes/new" className="btn btn-primary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -199,6 +271,91 @@ export const QuoteList = () => {
         </div>
       </div>
 
+      {/* Filter Panel */}
+      {isFilterOpen && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "2rem",
+            padding: "1.5rem",
+            borderRadius: "var(--radius-lg)",
+          }}
+        >
+          <h4
+            style={{
+              margin: "0 0 1.25rem 0",
+              fontSize: "0.9rem",
+              fontWeight: 900,
+              color: "var(--text-primary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Filter by status
+          </h4>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "1rem 1.5rem",
+              alignItems: "center",
+              marginBottom: "1.5rem",
+            }}
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={draftStatuses.includes(option.value)}
+                  onChange={() => toggleDraftStatus(option.value)}
+                />
+                <span className={`status-badge status-${option.value}`}>
+                  {option.label}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div
+            style={{
+              borderTop: "1px solid var(--border-color)",
+              paddingTop: "1rem",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.75rem",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={resetStatusFilter}
+            >
+              Reset All
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={applyStatusFilter}
+            >
+              Apply & Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       {filteredQuotes.length === 0 ? (
         <div className="card" style={{ padding: "4rem", textAlign: "center", color: "var(--text-secondary)" }}>
@@ -209,7 +366,8 @@ export const QuoteList = () => {
           {/* Desktop Cards Grid View */}
           <div className="desktop-quotes-grid">
             {activeQuotesList.map((q) => {
-              const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+              const items = Array.isArray(q.items) ? q.items : [];
+              const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
               const total = subtotal - discount + tax;
@@ -225,7 +383,9 @@ export const QuoteList = () => {
 
                   <div className="desktop-quote-card-title-row">
                     <div className="desktop-quote-card-id">{q.quoteNumber}</div>
-                    <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
+                    <div className="desktop-quote-card-customer">
+                      {q.customer?.companyName || q.companyName || "N/A"}
+                    </div>
                   </div>
 
                   <div className="desktop-quote-card-specs">
@@ -252,7 +412,7 @@ export const QuoteList = () => {
                       <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                         View Details
                       </Link>
-                      {currentUser.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
+                      {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                         <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                           Edit
                         </Link>
@@ -267,7 +427,8 @@ export const QuoteList = () => {
           {/* Mobile Stacked Card View */}
           <div className="mobile-quotes-list">
             {filteredQuotes.map((q) => {
-              const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+              const items = Array.isArray(q.items) ? q.items : [];
+              const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
               const total = subtotal - discount + tax;
@@ -283,7 +444,9 @@ export const QuoteList = () => {
                   
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div className="mobile-quote-card-id">{formatMobileQuoteNumber(q.quoteNumber)}</div>
-                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>{q.customer.companyName}</div>
+                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                      {q.customer?.companyName || q.companyName || "N/A"}
+                    </div>
                   </div>
 
                   <div className="mobile-quote-card-specs">
@@ -310,7 +473,7 @@ export const QuoteList = () => {
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                       Details
                     </Link>
-                    {currentUser.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
+                    {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                         Edit
                       </Link>
@@ -324,107 +487,118 @@ export const QuoteList = () => {
       )}
 
       {/* Rejected Quotes Section */}
-      <div style={{ marginTop: "3.5rem", textAlign: "left" }} className="rejected-section-wrapper">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-            Rejected Quotes
-          </h3>
-          <a 
-            href="#" 
-            onClick={(e) => e.preventDefault()} 
-            style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}
-          >
-            View Archive
-          </a>
-        </div>
-
-        {rejectedAndEditQuotes.length === 0 ? (
-          <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-secondary)" }}>
-            No rejected or changes-requested quotes in the archive queue.
+      {!isStatusFilterApplied && (
+        <div style={{ marginTop: "3.5rem", textAlign: "left" }} className="rejected-section-wrapper">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+              Rejected Quotes
+            </h3>
+            <a 
+              href="#" 
+              onClick={(e) => e.preventDefault()} 
+              style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}
+            >
+              View Archive
+            </a>
           </div>
-        ) : (
-          <div className="rejected-quotes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem" }}>
-            {rejectedAndEditQuotes.map((q) => {
-              const latestLog =
-                q.approvalHistory[q.approvalHistory.length - 1] ||
-                q.history[q.history.length - 1];
-              const isEdit = q.status === "AskedForEdit";
-              
-              return (
-                <div key={q.id} className="desktop-quote-card fade-in" style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)", padding: "1.25rem" }}>
-                  <div className="desktop-quote-card-header">
-                    <span>Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {q.quoteNumber}</span>
-                    <span className={`status-badge status-${q.status}`}>
-                      {isEdit ? "Edit Required" : "Rejected"}
-                    </span>
-                  </div>
 
-                  <div className="desktop-quote-card-title-row">
-                    <div className="desktop-quote-card-id" style={{ fontSize: "1.1rem" }}>
-                      {isEdit ? "Asked for edit" : latestLog?.note || "Budget Constraint"}
-                    </div>
-                  </div>
+          {rejectedAndEditQuotes.length === 0 ? (
+            <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-secondary)" }}>
+              No rejected or changes-requested quotes in the archive queue.
+            </div>
+          ) : (
+            <div className="rejected-quotes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem" }}>
+              {rejectedAndEditQuotes.map((q) => {
+                const approvalHistory = Array.isArray(q.approvalHistory)
+                  ? q.approvalHistory
+                  : [];
 
-                  {/* Horizontal Border Tags */}
-                  <div style={{ 
-                    display: "flex", 
-                    flexWrap: "wrap", 
-                    gap: "0.5rem", 
-                    padding: "0.75rem 0", 
-                    borderTop: "1px solid var(--border-color)", 
-                    borderBottom: "1px solid var(--border-color)", 
-                    margin: "0.5rem 0" 
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                      </svg>
-                      {q.boxStyle || "Corrugated"}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                      </svg>
-                      {q.type || "RSC"}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <line x1="4" y1="9" x2="20" y2="9"></line>
-                        <line x1="4" y1="15" x2="20" y2="15"></line>
-                        <line x1="10" y1="3" x2="8" y2="21"></line>
-                        <line x1="16" y1="3" x2="14" y2="21"></line>
-                      </svg>
-                      {q.fluteType || "B"}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                      </svg>
-                      {q.moq || "3k"}
-                    </div>
-                  </div>
+                const history = Array.isArray(q.history)
+                  ? q.history
+                  : [];
 
-                  {latestLog?.note && (
-                    <p style={{ fontSize: "0.8rem", fontStyle: "italic", margin: "0.5rem 0 1rem 0", color: "var(--text-secondary)" }}>
-                      "{latestLog.note}"
-                    </p>
-                  )}
+                const latestLog =
+                  approvalHistory[approvalHistory.length - 1] ||
+                  history[history.length - 1];
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "auto" }}>
-                    <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
-                    {currentUser.role === "Sales" && isEdit && (
-                      <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
+                const isEdit = q.status === "AskedForEdit";
+                
+                return (
+                  <div key={q.id} className="desktop-quote-card fade-in" style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)", padding: "1.25rem" }}>
+                    <div className="desktop-quote-card-header">
+                      <span>Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {q.quoteNumber}</span>
+                      <span className={`status-badge status-${q.status}`}>
+                        {isEdit ? "Edit Required" : "Rejected"}
+                      </span>
+                    </div>
+
+                    <div className="desktop-quote-card-title-row">
+                      <div className="desktop-quote-card-id" style={{ fontSize: "1.1rem" }}>
+                        {isEdit ? "Asked for edit" : latestLog?.note || "Budget Constraint"}
+                      </div>
+                    </div>
+
+                    {/* Horizontal Border Tags */}
+                    <div style={{ 
+                      display: "flex", 
+                      flexWrap: "wrap", 
+                      gap: "0.5rem", 
+                      padding: "0.75rem 0", 
+                      borderTop: "1px solid var(--border-color)", 
+                      borderBottom: "1px solid var(--border-color)", 
+                      margin: "0.5rem 0" 
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        </svg>
+                        {q.boxStyle || "Corrugated"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        </svg>
+                        {q.type || "RSC"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="4" y1="9" x2="20" y2="9"></line>
+                          <line x1="4" y1="15" x2="20" y2="15"></line>
+                          <line x1="10" y1="3" x2="8" y2="21"></line>
+                          <line x1="16" y1="3" x2="14" y2="21"></line>
+                        </svg>
+                        {q.fluteType || "B"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="9" cy="7" r="4"></circle>
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        {q.moq || "3k"}
+                      </div>
+                    </div>
+
+                    {latestLog?.note && (
+                      <p style={{ fontSize: "0.8rem", fontStyle: "italic", margin: "0.5rem 0 1rem 0", color: "var(--text-secondary)" }}>
+                        "{latestLog.note}"
+                      </p>
                     )}
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "auto" }}>
+                      <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
+                      {currentUser?.role === "Sales" && isEdit && (
+                        <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
