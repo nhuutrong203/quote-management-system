@@ -30,13 +30,25 @@ export const QuoteList = () => {
 
     // Search query filter
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (q) =>
-          q.quoteNumber.toLowerCase().includes(query) ||
-          q.customer.companyName.toLowerCase().includes(query) ||
-          q.customer.contactName.toLowerCase().includes(query)
-      );
+      const query = searchQuery.trim().toLowerCase();
+
+      result = result.filter((q) => {
+        const quoteNumber = String(q.quoteNumber || "").toLowerCase();
+
+        const companyName = String(
+          q.companyName || q.customer?.companyName || ""
+        ).toLowerCase();
+
+        const contactName = String(
+          q.contactName || q.customer?.contactName || ""
+        ).toLowerCase();
+
+        return (
+          quoteNumber.includes(query) ||
+          companyName.includes(query) ||
+          contactName.includes(query)
+        );
+      });
     }
 
     // Tab filter
