@@ -156,9 +156,28 @@ export const Dashboard = () => {
 
       {/* Active Quotes Layout */}
       <div style={{ textAlign: "left", marginBottom: "3rem" }}>
-        <div style={{ display: "flex", justifyContext: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <h2>Quotes List</h2>
-          <Link to="/quotes" className="btn btn-secondary btn-sm">View All</Link>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+            gap: "1rem",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Quotes List</h2>
+
+          <Link
+            to="/quotes"
+            className="btn btn-secondary btn-sm"
+            style={{
+              padding: "0.5rem 0.9rem",
+              whiteSpace: "nowrap",
+              fontWeight: 700,
+            }}
+          >
+            View All
+          </Link>
         </div>
 
         {activeQuotes.length === 0 ? (
@@ -287,9 +306,17 @@ export const Dashboard = () => {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
             {rejectedAndEditQuotes.map((q) => {
+              const approvalHistory = Array.isArray(q.approvalHistory)
+                ? q.approvalHistory
+                : [];
+
+              const history = Array.isArray(q.history)
+                ? q.history
+                : [];
+
               const latestLog =
-                q.approvalHistory[q.approvalHistory.length - 1] ||
-                q.history[q.history.length - 1];
+                approvalHistory[approvalHistory.length - 1] ||
+                history[history.length - 1];
               const isEdit = q.status === "AskedForEdit";
               
               return (

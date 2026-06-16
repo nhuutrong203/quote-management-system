@@ -11,6 +11,7 @@ const STATUS_LABELS = {
 const APPROVAL_ACTIONS = {
   APPROVE: "approve",
   SEND_BACK: "send_back",
+  REJECT: "reject",
 };
 
 const APPROVAL_TRANSITIONS = [
@@ -31,6 +32,14 @@ const APPROVAL_TRANSITIONS = [
     destinationLabel: "Sales edit queue",
   },
   {
+    actorRole: "HOD",
+    currentStatus: "Pending",
+    action: APPROVAL_ACTIONS.REJECT,
+    nextStatus: "Rejected",
+    actionLabel: "Rejected",
+    destinationLabel: "Rejected quotes archive",
+  },
+  {
     actorRole: "SC_HEAD",
     currentStatus: "Processing",
     action: APPROVAL_ACTIONS.APPROVE,
@@ -47,6 +56,14 @@ const APPROVAL_TRANSITIONS = [
     destinationLabel: "Sales edit queue",
   },
   {
+    actorRole: "SC_HEAD",
+    currentStatus: "Processing",
+    action: APPROVAL_ACTIONS.REJECT,
+    nextStatus: "Rejected",
+    actionLabel: "Rejected",
+    destinationLabel: "Rejected quotes archive",
+  },
+  {
     actorRole: "GM",
     currentStatus: "PendingApproval",
     action: APPROVAL_ACTIONS.APPROVE,
@@ -61,6 +78,14 @@ const APPROVAL_TRANSITIONS = [
     nextStatus: "AskedForEdit",
     actionLabel: "Sent Back",
     destinationLabel: "Sales edit queue",
+  },
+  {
+    actorRole: "GM",
+    currentStatus: "PendingApproval",
+    action: APPROVAL_ACTIONS.REJECT,
+    nextStatus: "Rejected",
+    actionLabel: "Rejected",
+    destinationLabel: "Rejected quotes archive",
   },
 ];
 

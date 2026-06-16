@@ -388,6 +388,7 @@ const updateQuote = async (quoteId, payload) => {
     );
 
     const actor = await getUserById(payload.updatedBy);
+
     quote.approvalHistory.push(
       buildApprovalAuditEntry({
         actor,
@@ -415,32 +416,46 @@ const updateQuoteStatus = async (quoteId, payload) => {
   const actor =
     payload.actor ||
     (payload.actorId ? await getUserById(payload.actorId) : null);
+
   const transition = getApprovalTransition({
     actorRole: actor?.role || payload.actorRole,
     currentStatus: quote.status,
     action: payload.action,
   });
 
+  const customer = await getCustomerById(quote.customerId);
+
+  quote.clientDetails = sanitizeClientDetails(
+    quote.clientDetails || {},
+    customer
+  );
+
   const fromStatus = quote.status;
   const toStatus = transition.nextStatus;
 
   quote.status = toStatus;
+
   quote.history.push(
     buildStatusHistoryEntry({
-        status: toStatus,
-        updatedBy: actor?.id || actor?._id,
-        note:
-          payload.note ||
-          `${transition.actionLabel} by ${actor?.role || payload.actorRole || "approver"}.`,
-      })
-    );
+      status: toStatus,
+      updatedBy: actor?.id || actor?._id,
+      note:
+        payload.note ||
+        `${transition.actionLabel} by ${actor?.role || payload.actorRole || "approver"}.`,
+    })
+  );
+
+  const auditAction =
+    transition.action === APPROVAL_ACTIONS.APPROVE
+      ? "Approved"
+      : transition.action === APPROVAL_ACTIONS.REJECT
+        ? "Rejected"
+        : "Sent Back";
+
   quote.approvalHistory.push(
     buildApprovalAuditEntry({
       actor,
-      action:
-        transition.action === APPROVAL_ACTIONS.APPROVE
-          ? "Approved"
-          : "Sent Back",
+      action: auditAction,
       fromStatus,
       toStatus,
       note:

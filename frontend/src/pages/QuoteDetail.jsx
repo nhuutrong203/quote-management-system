@@ -79,8 +79,8 @@ export const QuoteDetail = () => {
   const approvalPanelCopy = APPROVAL_COPY[currentUser.role];
 
   const handleWorkflowAction = async (action, fallbackNote) => {
-    if (action === "send_back" && !note.trim()) {
-      alert("Please enter a reason before sending the quote back.");
+    if ((action === "send_back" || action === "reject") && !note.trim()) {
+      alert("Please enter a reason before sending back or rejecting the quote.");
       return;
     }
 
@@ -352,6 +352,13 @@ export const QuoteDetail = () => {
                   className="btn btn-warning"
                 >
                   {approvalPanelCopy.sendBackLabel}
+                </button>
+
+                <button
+                  onClick={() => handleWorkflowAction("reject", "Rejected by reviewer.")}
+                  className="btn btn-danger"
+                >
+                  Reject Quote
                 </button>
               </div>
             </div>

@@ -211,10 +211,18 @@ const patchQuoteStatus = async (req, res, next) => {
       });
     }
 
-    if (String(action).trim().toLowerCase().replace(/\s+/g, "_") === "send_back" && !String(note || "").trim()) {
+    const normalizedAction = String(action)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+
+    if (
+      ["send_back", "reject"].includes(normalizedAction) &&
+      !String(note || "").trim()
+    ) {
       return res.status(400).json({
         status: "FAILED",
-        message: "note is required when sending a quote back",
+        message: "note is required when sending back or rejecting a quote",
       });
     }
 
