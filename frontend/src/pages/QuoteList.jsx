@@ -26,7 +26,6 @@ export const QuoteList = () => {
   const [activeTab, setActiveTab] = useState("quotes"); // "quotes" is active by default as in Figma
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
 
   const availableStatuses = [
     { value: "Draft", label: "Draft" },

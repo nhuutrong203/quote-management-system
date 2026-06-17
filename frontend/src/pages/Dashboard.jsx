@@ -373,79 +373,23 @@ export const Dashboard = () => {
                       {isEdit ? "Edit Required" : "Rejected"}
                     </span>
                   </div>
-        {showArchive && (
-          rejectedAndEditQuotes.length === 0 ? (
-            <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
-              No rejected or changes-requested quotes in the archive queue.
-            </div>
-          ) : (
-            <div className="rejected-quotes-grid">
-              {rejectedAndEditQuotes.map((q) => {
-                const latestLog = q.history[q.history.length - 1];
-                const isEdit = q.status === "AskedForEdit";
-                const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-                const discount = subtotal * 0.05;
-                const tax = (subtotal - discount) * 0.1;
-                const total = subtotal - discount + tax;
 
-                return (
-                  <div
-                    key={q.id}
-                    className="desktop-quote-card fade-in"
-                    style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)" }}
-                  >
-                    <div className="desktop-quote-card-header">
-                      <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
-                      <StatusBadge status={q.status} />
+                  {latestLog?.note && (
+                    <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+                      Reason: "{latestLog.note}"
                     </div>
-
-                    <div className="desktop-quote-card-title-row">
-                      <div className="desktop-quote-card-id">{q.quoteNumber}</div>
-                      <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
-                    </div>
-
-                    <div className="desktop-quote-card-specs">
-                      <div className="desktop-quote-card-spec-item">
-                        <span className="desktop-quote-card-spec-label">Box Style</span>
-                        <span className="desktop-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
-                      </div>
-                      <div className="desktop-quote-card-spec-item">
-                        <span className="desktop-quote-card-spec-label">Flute</span>
-                        <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B"}</span>
-                      </div>
-                      <div className="desktop-quote-card-spec-item">
-                        <span className="desktop-quote-card-spec-label">MOQ</span>
-                        <span className="desktop-quote-card-spec-value">{q.moq || "3k"}</span>
-                      </div>
-                    </div>
+                  )}
 
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
                     {currentUser.role === "Sales" && isEdit && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
-                    {latestLog?.note && (
-                      <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: isEdit ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
-                        Reason: "{latestLog.note}"
-                      </div>
                     )}
-
-                    <div className="desktop-quote-card-footer">
-                      <div className="desktop-quote-card-total-group">
-                        <span className="desktop-quote-card-total-label">Total Quote:</span>
-                        <span className="desktop-quote-card-total-value">{formatCurrency(total)}</span>
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>Details</Link>
-                        {currentUser.role === "Sales" && (
-                          <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>Resubmit</Link>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
