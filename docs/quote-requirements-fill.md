@@ -29,8 +29,23 @@
 | FR-13 | P1 | Order Form preview renders the AMB Packaging header, mock quote total label, and 8-column details table with 3 walkthrough rows when no live order rows exist. |
 | FR-14 | P2 | Dashboard and quote list show queue counts by role using the current quote status values without requiring page refresh after navigation. |
 | FR-15 | P2 | Seed data creates a consistent demo dataset across Sales, HOD, SC Head, and GM states so walkthroughs can be repeated reliably. |
+| FR-16 | P1 | Approval status changes create in-app Notification records only. Sprint 2 uses frontend polling every 30 seconds; email notifications are explicitly out of scope. |
 
 ## Section 8. Pricing Questions
+
+## Day 9 Pricing Model Notes
+
+The Day 9 worked example is stored at `docs/pricing-day9-worked-example.xls`. Paper prices by GSM should be stored in MongoDB collection `paper_prices`, keyed by GSM, flute/layer combination, supplier, currency, and effective date. The default RSC blank area formula is `blank length = 2*(L+W)+glue flap`, `blank width = W+H`, and `blank area sqm = length*width/1,000,000`, with default 5% waste unless workshop data overrides it. Printing cost is `(setup charge + color count * variable color rate * quantity) / quantity`. Default margin is 25%, so selling price is `factory cost / (1 - margin)`.
+
+## Day 10 Stabilization Notes
+
+Day 10 is a no-new-story stabilization day. Full notes are in `docs/day10-internal-review.md` and API support notes are in `docs/day10-api-support-notes.md`. Core backend flow AP-01 -> AP-02 -> AP-03 is covered by `backend/tests/full-approval-flow.integration.test.js`, including final Order creation and GM hard reject persistence. Sprint 3 planning is blocked until formal confirmation is available for pricing formula sign-off, GM Roles & Permissions sign-off, asked-for-edit lifecycle, and Multi-SKU business decision.
+
+## Asked For Edit Business Rule
+
+HOD, SC Head, and GM can all trigger "Asked for edit" by sending a quote back from their active approval queue. Sales then directly edits the existing quote record when its status is `AskedForEdit`; the current implementation does not create a new quote version. Sales can save revisions while keeping the quote in `AskedForEdit`, then resubmit to `Pending` when ready. Rejected quotes are final/read-only in the archive and are not eligible for resubmit; if the commercial deal restarts, Sales should create a new quote. If PM later confirms that a new version is required, the old version should be retained as an immutable quote revision linked to the new active revision, including full client snapshot, SKU rows, totals, and approval history. After Sales finishes editing under the current rule, the quote is resubmitted to `Pending`, so the approval flow restarts from HOD and proceeds again through SC Head and GM.
+
+Implementation impact: the existing code supports direct edit and resubmit of the same quote from `AskedForEdit` to `Pending`. Building true versioning would require a quote revision model or embedded revisions array, API changes for version lookup/comparison, and UI changes to show previous versions. PM confirmation is required before implementing that versioning behavior.
 
 ### Base Price
 

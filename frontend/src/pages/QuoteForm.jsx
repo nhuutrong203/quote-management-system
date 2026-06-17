@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 
 const PARAMETER_KEYS = [
@@ -199,8 +199,12 @@ export const QuoteForm = () => {
   const [parameterFields, setParameterFields] = useState([]);
   const [quoteItems, setQuoteItems] = useState([]);
   const [clientDetails, setClientDetails] = useState(() => buildClientDetailsFromCustomer(null));
+  const [quoteStatus, setQuoteStatus] = useState(id ? "" : "Draft");
   const [validationErrors, setValidationErrors] = useState({ client: {}, items: [] });
   const [isLoadingForm, setIsLoadingForm] = useState(true);
+  const [initialSnapshot, setInitialSnapshot] = useState(null);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     if (currentUser?.role && currentUser.role !== "Sales") {
@@ -236,21 +240,60 @@ export const QuoteForm = () => {
             return;
           }
 
+          if (!["Draft", "AskedForEdit"].includes(quote.status)) {
+            navigate("/quotes", {
+              replace: true,
+              state: {
+                toast:
+                  quote.status === "Rejected"
+                    ? "Rejected quotes are read-only. Create a new quote if the deal should restart."
+                    : "Only Draft or Edit Required quotes can be edited.",
+              },
+            });
+            return;
+          }
+
+          const nextSelectedCustomerId = quote.customer?.id || nextCustomers[0]?.id || "";
+          const nextClientDetails =
+            quote.clientDetails ||
+            buildClientDetailsFromCustomer(nextCustomers.find((item) => item.id === quote.customer?.id));
+          const nextQuoteItems = buildEditableItems(quote, fieldDefaults);
+
           setQuoteNumber(quote.quoteNumber);
-          setSelectedCustomerId(quote.customer?.id || nextCustomers[0]?.id || "");
-          setClientDetails(
-            quote.clientDetails || buildClientDetailsFromCustomer(nextCustomers.find((item) => item.id === quote.customer?.id))
+          setQuoteStatus(quote.status);
+          setSelectedCustomerId(nextSelectedCustomerId);
+          setClientDetails(nextClientDetails);
+          setQuoteItems(nextQuoteItems);
+          setInitialSnapshot(
+            JSON.stringify({
+              quoteNumber: quote.quoteNumber,
+              selectedCustomerId: nextSelectedCustomerId,
+              clientDetails: nextClientDetails,
+              quoteItems: nextQuoteItems,
+            })
           );
-          setQuoteItems(buildEditableItems(quote, fieldDefaults));
         } else {
           const quoteResponse = await apiService.getQuotes();
           const nextQuoteCount = (quoteResponse.data || []).length + 1;
           const defaultCustomer = nextCustomers[0] || null;
+          const nextQuoteNumber = `#12${String(nextQuoteCount).padStart(3, "0")}`;
+          const nextSelectedCustomerId = defaultCustomer?.id || "";
+          const nextClientDetails = buildClientDetailsFromCustomer(defaultCustomer);
+          const nextQuoteItems = [buildDefaultQuoteItem(fieldDefaults)];
 
-          setQuoteNumber(`#12${String(nextQuoteCount).padStart(3, "0")}`);
-          setSelectedCustomerId(defaultCustomer?.id || "");
-          setClientDetails(buildClientDetailsFromCustomer(defaultCustomer));
-          setQuoteItems([buildDefaultQuoteItem(fieldDefaults)]);
+          setQuoteNumber(nextQuoteNumber);
+          setQuoteStatus("Draft");
+          setSelectedCustomerId(nextSelectedCustomerId);
+          setClientDetails(nextClientDetails);
+          setQuoteItems(nextQuoteItems);
+          setInitialSnapshot(
+            JSON.stringify({
+              quoteNumber: nextQuoteNumber,
+              selectedCustomerId: nextSelectedCustomerId,
+              clientDetails: nextClientDetails,
+              quoteItems: nextQuoteItems,
+            })
+          );
         }
       } catch (error) {
         console.error("Error loading form data:", error);
@@ -293,7 +336,15 @@ export const QuoteForm = () => {
 
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId);
   const headerTitle = id ? "Edit Quote" : "New Quote";
-  const previewStatusLabel = id ? "EDIT PREVIEW" : "DRAFT PREVIEW";
+  const isResubmission = quoteStatus === "AskedForEdit";
+  const previewStatusLabel = isResubmission ? "RESUBMIT PREVIEW" : id ? "EDIT PREVIEW" : "DRAFT PREVIEW";
+  const currentSnapshot = JSON.stringify({
+    quoteNumber,
+    selectedCustomerId,
+    clientDetails,
+    quoteItems,
+  });
+  const hasUnsavedChanges = Boolean(initialSnapshot && currentSnapshot !== initialSnapshot);
 
   const updateItem = (itemId, updater) => {
     setQuoteItems((currentItems) =>
@@ -387,7 +438,9 @@ export const QuoteForm = () => {
     return options.find((option) => option.value === value)?.label || value || "N/A";
   };
 
-  const handleSave = async (status) => {
+  const handleSave = async (nextStatus) => {
+    setSaveError("");
+    const status = isResubmission && nextStatus === "Draft" ? "AskedForEdit" : nextStatus;
     const { isValid, hasClientErrors } = validateForm();
 
     if (!selectedCustomerId) {
@@ -442,16 +495,42 @@ export const QuoteForm = () => {
           note:
             status === "Pending"
               ? "Sales updated the quote and resubmitted to HOD."
-              : "Sales updated quote details.",
+              : isResubmission
+                ? "Sales saved changes while keeping the quote in the edit-required queue."
+                : "Sales updated quote details.",
         });
       } else {
         await apiService.createQuote(payload);
       }
 
-      navigate("/quotes");
+      navigate("/quotes", {
+        state: {
+          toast:
+            status === "Pending"
+              ? isResubmission
+                ? "Quote resubmitted to HOD"
+                : "Quote submitted to HOD"
+              : isResubmission
+                ? "Quote changes saved"
+                : "Quote saved as Draft",
+        },
+      });
     } catch (error) {
       console.error("Error saving quote:", error);
+      setSaveError(
+        error.response?.data?.message ||
+          "Unable to save this quote. Please check the fields and try again."
+      );
     }
+  };
+
+  const handleCancel = () => {
+    if (!hasUnsavedChanges) {
+      navigate("/quotes");
+      return;
+    }
+
+    setShowDiscardDialog(true);
   };
 
   return (
@@ -960,28 +1039,83 @@ export const QuoteForm = () => {
                 {formatCurrency(grandTotal)}
               </div>
             </div>
+            {saveError && (
+              <div
+                style={{
+                  color: "var(--danger)",
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  maxWidth: "260px",
+                }}
+              >
+                {saveError}
+              </div>
+            )}
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <Link to="/quotes" className="btn btn-secondary btn-sm" style={{ padding: "0.5rem 0.85rem" }}>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: "0.5rem 0.85rem" }}
+              >
                 Cancel
-              </Link>
+              </button>
               <button
                 onClick={() => handleSave("Draft")}
                 className="btn btn-secondary btn-sm"
                 style={{ padding: "0.5rem 0.85rem" }}
               >
-                Draft
+                {isResubmission ? "Save Changes" : "Draft"}
               </button>
               <button
                 onClick={() => handleSave("Pending")}
                 className="btn btn-primary btn-sm"
                 style={{ padding: "0.5rem 0.85rem" }}
               >
-                Save Quote
+                {isResubmission ? "Resubmit to HOD" : "Save Quote"}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {showDiscardDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 500,
+            backgroundColor: "rgba(15, 23, 42, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
+          }}
+        >
+          <div className="card" style={{ width: "min(360px, 100%)", textAlign: "left" }}>
+            <h3 style={{ marginBottom: "0.5rem" }}>Discard changes?</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+              Your unsaved quote changes will be lost.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowDiscardDialog(false)}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={() => navigate("/quotes")}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

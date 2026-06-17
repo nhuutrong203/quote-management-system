@@ -35,6 +35,17 @@ test("SC Head approval moves Processing quotes to PendingApproval", () => {
   assert.equal(transition.destinationLabel, "GM queue");
 });
 
+test("GM hard reject moves PendingApproval quotes to Rejected", () => {
+  const transition = getApprovalTransition({
+    actorRole: "GM",
+    currentStatus: "PendingApproval",
+    action: "reject",
+  });
+
+  assert.equal(transition.nextStatus, "Rejected");
+  assert.equal(transition.destinationLabel, "Rejected quotes archive");
+});
+
 test("invalid role transition throws a permission error", () => {
   assert.throws(
     () =>

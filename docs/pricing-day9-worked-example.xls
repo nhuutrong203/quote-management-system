@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+    <Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Money"><NumberFormat ss:Format="S$#,##0.00"/></Style>
+    <Style ss:ID="Number"><NumberFormat ss:Format="0.000"/></Style>
+  </Styles>
+  <Worksheet ss:Name="Worked Example">
+    <Table>
+      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">Day 9 Pricing Worked Example</Data></Cell></Row>
+      <Row/>
+      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">Input</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Value</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Unit</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Box Style</Data></Cell><Cell><Data ss:Type="String">RSC Carton</Data></Cell><Cell><Data ss:Type="String">-</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Length</Data></Cell><Cell><Data ss:Type="Number">400</Data></Cell><Cell><Data ss:Type="String">mm</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Width</Data></Cell><Cell><Data ss:Type="Number">300</Data></Cell><Cell><Data ss:Type="String">mm</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Height</Data></Cell><Cell><Data ss:Type="Number">200</Data></Cell><Cell><Data ss:Type="String">mm</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Glue Flap</Data></Cell><Cell><Data ss:Type="Number">35</Data></Cell><Cell><Data ss:Type="String">mm</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Flute</Data></Cell><Cell><Data ss:Type="String">B</Data></Cell><Cell><Data ss:Type="String">-</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Board GSM</Data></Cell><Cell><Data ss:Type="Number">412</Data></Cell><Cell><Data ss:Type="String">g/m2</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Paper Price</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">1.2</Data></Cell><Cell><Data ss:Type="String">per kg</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Colors</Data></Cell><Cell><Data ss:Type="Number">4</Data></Cell><Cell><Data ss:Type="String">colors</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Quantity</Data></Cell><Cell><Data ss:Type="Number">5000</Data></Cell><Cell><Data ss:Type="String">pcs</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Default Margin</Data></Cell><Cell><Data ss:Type="Number">0.25</Data></Cell><Cell><Data ss:Type="String">25%</Data></Cell></Row>
+      <Row/>
+      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">Cost Breakdown</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Formula / Basis</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Value</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Blank Length</Data></Cell><Cell><Data ss:Type="String">2*(L+W)+Glue Flap</Data></Cell><Cell><Data ss:Type="Number">1435</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Blank Width</Data></Cell><Cell><Data ss:Type="String">W+H for RSC</Data></Cell><Cell><Data ss:Type="Number">500</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Raw Blank Area</Data></Cell><Cell><Data ss:Type="String">1435*500/1,000,000</Data></Cell><Cell ss:StyleID="Number"><Data ss:Type="Number">0.7175</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Blank Area incl. Waste</Data></Cell><Cell><Data ss:Type="String">Raw Area * 1.05</Data></Cell><Cell ss:StyleID="Number"><Data ss:Type="Number">0.753375</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Board Weight</Data></Cell><Cell><Data ss:Type="String">Area * GSM / 1000</Data></Cell><Cell ss:StyleID="Number"><Data ss:Type="Number">0.3103905</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Paper Cost / Unit</Data></Cell><Cell><Data ss:Type="String">Board Weight * Paper Price</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">0.3724686</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Printing Cost / Unit</Data></Cell><Cell><Data ss:Type="String">(Setup 120 + Colors*0.015*Qty) / Qty</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">0.084</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Conversion Cost / Unit</Data></Cell><Cell><Data ss:Type="String">Die-cut, glue, handling</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">0.08</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Factory Cost / Unit</Data></Cell><Cell><Data ss:Type="String">(Paper + Print + Conversion) * 1.10 overhead</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">0.59011546</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Selling Price / Unit</Data></Cell><Cell><Data ss:Type="String">Factory Cost / (1 - Margin)</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">0.7868206133</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Total Quote</Data></Cell><Cell><Data ss:Type="String">Selling Price / Unit * Quantity</Data></Cell><Cell ss:StyleID="Money"><Data ss:Type="Number">3934.1030665</Data></Cell></Row>
+    </Table>
+  </Worksheet>
+  <Worksheet ss:Name="Formula Notes">
+    <Table>
+      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">Topic</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Day 9 Definition</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Paper price database</Data></Cell><Cell><Data ss:Type="String">MongoDB collection paper_prices stores price by GSM, flute/layer combination, supplier, currency, and effective date.</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Blank area by box style</Data></Cell><Cell><Data ss:Type="String">RSC default: blank length = 2*(L+W)+glue flap; blank width = W+H; blank area sqm = length*width/1,000,000; apply default 5% waste factor. Other box styles need their own formula mapping in the SRS pricing model.</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Printing cost</Data></Cell><Cell><Data ss:Type="String">Printing cost per unit = (setup charge + color count * variable color rate * quantity) / quantity. Example uses S$120 setup and S$0.015 per color per carton.</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Default margin</Data></Cell><Cell><Data ss:Type="String">Default commercial margin is 25%; selling price = factory cost / (1 - margin).</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">SRS update note</Data></Cell><Cell><Data ss:Type="String">If the workshop already happened before Day 9, Trong should review this example and update the SRS pricing model with confirmed paper price source, box-style formulas, printing rates, and margin policy.</Data></Cell></Row>
+    </Table>
+  </Worksheet>
+</Workbook>

@@ -167,6 +167,32 @@ test("POST /api/quotes uses authenticated Sales user instead of client-supplied 
   assert.equal(capturedCreatePayload.createdBy, salesUserId);
 });
 
+test("POST /api/quotes saves Sales draft quotes with Draft status", async () => {
+  capturedCreatePayload = null;
+
+  const { response, json } = await requestJson("/api/quotes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer mock-token-${salesUserId}`,
+    },
+    body: JSON.stringify({
+      quoteNumber: "#12997",
+      customerId: "507f191e810c19729de860ec",
+      clientDetails: validClientDetails,
+      items: [validItem],
+      totalPlaceholder: 2600,
+      status: "Draft",
+    }),
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(json.status, "OK");
+  assert.equal(json.data.status, "Draft");
+  assert.equal(capturedCreatePayload.status, "Draft");
+  assert.equal(capturedCreatePayload.createdBy, salesUserId);
+});
+
 test("PUT /api/quotes/:id blocks HOD from editing quotes", async () => {
   const { response, json } = await requestJson(`/api/quotes/${quoteId}`, {
     method: "PUT",
@@ -206,5 +232,29 @@ test("PUT /api/quotes/:id uses authenticated Sales user instead of client-suppli
 
   assert.equal(response.status, 200);
   assert.equal(json.status, "OK");
+  assert.equal(capturedUpdatePayload.payload.updatedBy, salesUserId);
+});
+
+test("PUT /api/quotes/:id can save AskedForEdit changes without restarting approval", async () => {
+  capturedUpdatePayload = null;
+
+  const { response, json } = await requestJson(`/api/quotes/${quoteId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer mock-token-${salesUserId}`,
+    },
+    body: JSON.stringify({
+      customerId: "507f191e810c19729de860ec",
+      clientDetails: validClientDetails,
+      items: [validItem],
+      status: "AskedForEdit",
+      note: "Sales saved revisions before resubmitting.",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(json.status, "OK");
+  assert.equal(capturedUpdatePayload.payload.status, "AskedForEdit");
   assert.equal(capturedUpdatePayload.payload.updatedBy, salesUserId);
 });

@@ -1,12 +1,14 @@
-import { useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
+import apiService from "../services/api";
 
 export const Layout = () => {
   const { currentUser, logout, switchRole } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [notificationBanner, setNotificationBanner] = useState(null);
 
   const handleRoleChange = (e) => {
     switchRole(e.target.value);
@@ -16,6 +18,32 @@ export const Layout = () => {
     logout();
     navigate("/login");
   };
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await apiService.getNotifications();
+      const latestNotification = response.data?.[0];
+
+      if (!latestNotification) return;
+
+      setNotificationBanner((currentBanner) => {
+        if (currentBanner?.id === latestNotification.id) {
+          return currentBanner;
+        }
+
+        return latestNotification;
+      });
+    } catch (error) {
+      console.error("Error polling notifications:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const intervalId = window.setInterval(fetchNotifications, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchNotifications, currentUser?.id]);
 
   const getRoleLabel = (role) => {
     if (role === "Sales") return "Sales/SC";
@@ -161,6 +189,20 @@ export const Layout = () => {
             </div>
           </div>
         </header>
+
+        {notificationBanner && (
+          <div className="notification-banner" role="status">
+            <span>{notificationBanner.message}</span>
+            <button
+              type="button"
+              className="notification-banner-close"
+              onClick={() => setNotificationBanner(null)}
+              aria-label="Dismiss notification"
+            >
+              x
+            </button>
+          </div>
+        )}
 
         {/* Settings Modal (Mobile Role Selector / Logout) */}
         {showSettingsModal && (

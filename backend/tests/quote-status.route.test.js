@@ -9,6 +9,8 @@ const userService = require("../src/modules/users/user.service");
 const validQuoteId = "507f1f77bcf86cd799439011";
 const hodUserId = "507f191e810c19729de860ea";
 const salesUserId = "507f191e810c19729de860eb";
+const scHeadUserId = "507f191e810c19729de860ed";
+const gmUserId = "507f191e810c19729de860ef";
 
 const originalUpdateQuoteStatus = quoteService.updateQuoteStatus;
 const originalGetUserById = userService.getUserById;
@@ -45,16 +47,72 @@ before(async () => {
       };
     }
 
+    if (String(userId) === scHeadUserId) {
+      return {
+        _id: scHeadUserId,
+        name: "SC Head Singapore",
+        email: "schead@amb.com.sg",
+        role: "SC_HEAD",
+        isActive: true,
+      };
+    }
+
+    if (String(userId) === gmUserId) {
+      return {
+        _id: gmUserId,
+        name: "GM Singapore",
+        email: "gm@amb.com.sg",
+        role: "GM",
+        isActive: true,
+      };
+    }
+
     return null;
   };
 
   quoteService.updateQuoteStatus = async (quoteId, payload) => {
     capturedPayload = { quoteId, payload };
+    const status = payload.actor.role === "SC_HEAD" ? "PendingApproval" : "Processing";
+
+    if (payload.actor.role === "GM" && payload.action === "approve") {
+      return {
+        quote: {
+          id: quoteId,
+          quoteNumber: "#12003",
+          status: "Approved",
+          customer: {
+            id: "customer-1",
+            companyName: "AMB Packaging Logistics",
+          },
+          clientDetails: {
+            companyName: "AMB Packaging Logistics",
+            companyAddress: "22 Penjuru Rd, Singapore 609142",
+            contactPerson: "Mr. Chen Wei",
+            phoneNumber: "+65 6789 0123",
+            email: "wei.chen@ambpack.com",
+            billingAddress: "22 Penjuru Rd, Singapore 609142",
+            deliveryAddress: "29 Gul Circle, Singapore 629585",
+          },
+          items: [],
+          history: [],
+          approvalHistory: [],
+          totalPlaceholder: 2600,
+          totalDisplay: "S$2,600.00",
+        },
+        order: {
+          id: "order-1",
+          orderNumber: "ORD-12003",
+          orderId: "ORD-12003",
+          quoteId,
+          status: "Draft",
+        },
+      };
+    }
 
     return {
       id: quoteId,
       quoteNumber: "#12003",
-      status: "Processing",
+      status,
       customer: {
         id: "customer-1",
         companyName: "AMB Packaging Logistics",
@@ -146,7 +204,7 @@ test("PATCH /api/quotes/:id/status requires a note when sending back", async () 
   });
 
   assert.equal(response.status, 400);
-  assert.equal(json.message, "note is required when sending a quote back");
+  assert.equal(json.message, "note is required when sending back or rejecting a quote");
 });
 
 test("PATCH /api/quotes/:id/status uses authenticated HOD identity for approve flow", async () => {
@@ -173,4 +231,52 @@ test("PATCH /api/quotes/:id/status uses authenticated HOD identity for approve f
   assert.equal(capturedPayload.payload.actor.id, hodUserId);
   assert.equal(capturedPayload.payload.actor.role, "HOD");
   assert.equal(capturedPayload.payload.action, "approve");
+});
+
+test("PATCH /api/quotes/:id/status wires SC Head approval to the shared status service", async () => {
+  capturedPayload = null;
+
+  const { response, json } = await requestJson(`/api/quotes/${validQuoteId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer mock-token-${scHeadUserId}`,
+    },
+    body: JSON.stringify({
+      action: "approve",
+      note: "Approved and routed to GM.",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(json.status, "OK");
+  assert.equal(json.data.status, "PendingApproval");
+  assert.equal(capturedPayload.quoteId, validQuoteId);
+  assert.equal(capturedPayload.payload.actor.id, scHeadUserId);
+  assert.equal(capturedPayload.payload.actor.role, "SC_HEAD");
+  assert.equal(capturedPayload.payload.action, "approve");
+});
+
+test("PATCH /api/quotes/:id/status returns quote and order DTOs for GM final approval", async () => {
+  capturedPayload = null;
+
+  const { response, json } = await requestJson(`/api/quotes/${validQuoteId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer mock-token-${gmUserId}`,
+    },
+    body: JSON.stringify({
+      action: "approve",
+      note: "Final approved.",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(json.status, "OK");
+  assert.equal(json.message, "Quote approved and order conversion created successfully");
+  assert.equal(json.data.quote.status, "Approved");
+  assert.equal(json.data.order.orderNumber, "ORD-12003");
+  assert.equal(capturedPayload.payload.actor.id, gmUserId);
+  assert.equal(capturedPayload.payload.actor.role, "GM");
 });

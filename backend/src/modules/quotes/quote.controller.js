@@ -226,23 +226,32 @@ const patchQuoteStatus = async (req, res, next) => {
       });
     }
 
-    const quote = await quoteService.updateQuoteStatus(req.params.id, {
+    const result = await quoteService.updateQuoteStatus(req.params.id, {
       action,
       note,
       actor: req.user,
     });
 
-    if (!quote) {
+    if (!result) {
       return res.status(404).json({
         status: "FAILED",
         message: "Quote not found",
       });
     }
 
+    const isConversionResponse = result.quote && result.order;
+
     res.status(200).json({
       status: "OK",
-      message: "Quote status updated successfully",
-      data: quote,
+      message: isConversionResponse
+        ? "Quote approved and order conversion created successfully"
+        : "Quote status updated successfully",
+      data: isConversionResponse
+        ? {
+            quote: result.quote,
+            order: result.order,
+          }
+        : result,
     });
   } catch (error) {
     next(error);

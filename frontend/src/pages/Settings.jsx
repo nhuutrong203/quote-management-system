@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect, useMemo } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { useContext, useState, useEffect, useMemo, useRef } from "react";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 
 // Initial mock data containing default parameters matching the pricing setup
@@ -130,7 +130,7 @@ export const Settings = () => {
   const [sandboxColors, setSandboxColors] = useState("COLOR_2");
   const [sandboxJoints, setSandboxJoints] = useState("JOINT_GLUE");
   const [sandboxMoq, setSandboxMoq] = useState("MOQ_5K");
-  const [sandboxDimension, setSandboxDimension] = useState("DIM_ID_STD");
+  const [sandboxDimension] = useState("DIM_ID_STD");
   const [sandboxQty, setSandboxQty] = useState(5000);
 
   const isGM = currentUser?.role === "GM";
@@ -160,8 +160,11 @@ export const Settings = () => {
   }, [users, isGM, currentUser]);
 
   // Toast Helper
+  const toastIdRef = useRef(0);
+
   const showToast = (message, type = "success") => {
-    const id = Date.now();
+    toastIdRef.current += 1;
+    const id = toastIdRef.current;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));

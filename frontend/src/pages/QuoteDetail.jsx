@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 
@@ -45,7 +45,7 @@ export const QuoteDetail = () => {
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
 
-  const fetchQuoteDetails = async () => {
+  const fetchQuoteDetails = useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiService.getQuoteById(id);
@@ -59,11 +59,11 @@ export const QuoteDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
     fetchQuoteDetails();
-  }, [id]);
+  }, [fetchQuoteDetails]);
 
   const canUserApprove = () => {
     if (!quote) return false;
@@ -97,7 +97,7 @@ export const QuoteDetail = () => {
     }
   };
 
-  const handleConvertToOrder = () => {
+  const handlePrintOrderForm = () => {
     navigate(`/orders/preview/${quote.id}`);
   };
 
@@ -181,7 +181,7 @@ export const QuoteDetail = () => {
             <Link to={`/quotes/edit/${quote.id}`} className="btn btn-primary">Edit</Link>
           )}
           {currentUser.role === "Sales" && quote.status === "Approved" && (
-            <button onClick={handleConvertToOrder} className="btn btn-success">Convert to Order</button>
+            <button onClick={handlePrintOrderForm} className="btn btn-success">Print Order Form</button>
           )}
         </div>
       </div>
@@ -360,7 +360,7 @@ export const QuoteDetail = () => {
                   onClick={() => handleWorkflowAction("reject", "Rejected by reviewer.")}
                   className="btn btn-danger"
                 >
-                  Reject Quote
+                  {currentUser.role === "GM" ? "Hard Reject Quote" : "Reject Quote"}
                 </button>
               </div>
             </div>

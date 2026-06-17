@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
@@ -17,6 +17,7 @@ const DETAIL_COLUMNS = [
 export const OrderFormPreview = () => {
   const { quoteId } = useParams();
   const [orderPreview, setOrderPreview] = useState(null);
+  const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState({
     companyName: "",
@@ -32,8 +33,12 @@ export const OrderFormPreview = () => {
       setLoading(true);
 
       try {
-        const response = await apiService.getOrderFormPreview(quoteId);
+        const [response, quoteResponse] = await Promise.all([
+          apiService.getOrderFormPreview(quoteId),
+          quoteId ? apiService.getQuoteById(quoteId).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+        ]);
         setOrderPreview(response.data);
+        setQuote(quoteResponse.data);
         if (response.data?.customer) {
           setCustomer({
             companyName: response.data.customer.companyName || "",
@@ -105,7 +110,7 @@ export const OrderFormPreview = () => {
             Back
           </Link>
           <button onClick={() => window.print()} className="btn btn-primary" type="button">
-            Print Shell
+            Print Order Form
           </button>
         </div>
       </div>
@@ -121,7 +126,7 @@ export const OrderFormPreview = () => {
               <div className="order-preview-brand-subtitle">Logo Placeholder</div>
             </div>
           </div>
-          <StatusBadge status={orderPreview.status} />
+          <StatusBadge status={quote?.status || orderPreview.status} />
         </div>
 
         <div className="order-preview-title-row">
@@ -133,6 +138,46 @@ export const OrderFormPreview = () => {
           <div className="order-preview-total-card">
             <span className="order-preview-total-label">Quote Total</span>
             <span className="order-preview-total-value">{orderPreview.quoteTotalLabel}</span>
+          </div>
+        </div>
+
+        <div className="order-preview-section">
+          <div className="order-preview-section-title">Full Quote Information</div>
+          <div className="order-preview-info-grid">
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Quote Number</span>
+              <span className="order-preview-info-value">{quote?.quoteNumber || orderPreview.quoteNumber}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Quote Status</span>
+              <span className="order-preview-info-value">{quote?.status || "Approved"}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Created By</span>
+              <span className="order-preview-info-value">{quote?.createdBy?.name || "Sales/SC"}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Issue Date</span>
+              <span className="order-preview-info-value">
+                {quote?.createdAt ? new Date(quote.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB")}
+              </span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Box Style</span>
+              <span className="order-preview-info-value">{quote?.boxStyle || orderPreview.orderDetailsRows[0]?.boxStyle || "Corrugated"}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Dimension</span>
+              <span className="order-preview-info-value">{quote?.dimension || orderPreview.orderDetailsRows[0]?.dimension || "ID (L x W x H mm)"}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Flute</span>
+              <span className="order-preview-info-value">{quote?.fluteType || orderPreview.orderDetailsRows[0]?.fluteType || "B"}</span>
+            </div>
+            <div className="order-preview-info-cell">
+              <span className="order-preview-info-label">Total Amount</span>
+              <span className="order-preview-info-value">{quote?.totalDisplay || orderPreview.quoteTotalLabel}</span>
+            </div>
           </div>
         </div>
 
@@ -218,7 +263,30 @@ export const OrderFormPreview = () => {
           </div>
         </div>
 
-        <div className="order-preview-footer-note">SC print view prep shell. Layout only, ready for downstream print/PDF work.</div>
+        <div className="order-preview-section">
+          <div className="order-preview-section-title">Total Amount</div>
+          <div className="order-preview-total-card" style={{ alignItems: "flex-start", maxWidth: "320px" }}>
+            <span className="order-preview-total-label">Grand Total</span>
+            <span className="order-preview-total-value">{quote?.totalDisplay || orderPreview.quoteTotalLabel}</span>
+          </div>
+        </div>
+
+        <div className="order-preview-section">
+          <div className="order-preview-section-title">Signatures</div>
+          <div className="order-preview-signature-row">
+            <div className="order-preview-signature-box">
+              <div className="order-preview-signature-line">Prepared by Sales/SC</div>
+            </div>
+            <div className="order-preview-signature-box">
+              <div className="order-preview-signature-line">Customer Signature</div>
+            </div>
+            <div className="order-preview-signature-box">
+              <div className="order-preview-signature-line">Date</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="order-preview-footer-note">In-app SC print view. Use browser print dialog to generate the physical copy.</div>
       </div>
     </div>
   );

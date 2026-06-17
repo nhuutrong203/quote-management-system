@@ -1,6 +1,9 @@
 const Quote = require("./quote.model");
+const mongoose = require("mongoose");
 const Customer = require("../customers/customer.model");
 const User = require("../users/user.model");
+const orderConversionService = require("../orders/orderConversion.service");
+const notificationService = require("../notifications/notification.service");
 const {
   APPROVAL_ACTIONS,
   buildApprovalAuditEntry,
@@ -10,6 +13,8 @@ const {
 const formatCurrency = (amount) => {
   return `S$${Number(amount || 0).toLocaleString("en-SG")}`;
 };
+
+const isDatabaseConnected = () => mongoose.connection.readyState === 1;
 
 const parseMoqQuantity = (value) => {
   const normalized = String(value || "").toLowerCase().replace(/,/g, "").trim();
@@ -406,8 +411,13 @@ const updateQuote = async (quoteId, payload) => {
   return mapQuoteToClientDTO(updatedQuote);
 };
 
-const updateQuoteStatus = async (quoteId, payload) => {
-  const quote = await Quote.findById(quoteId);
+const findQuoteById = async (quoteId, session = null) => {
+  const query = Quote.findById(quoteId);
+  return session && typeof query.session === "function" ? query.session(session) : query;
+};
+
+const updateQuoteStatusWithoutTransaction = async (quoteId, payload, session = null) => {
+  const quote = await findQuoteById(quoteId, session);
 
   if (!quote) {
     return null;
@@ -464,10 +474,70 @@ const updateQuoteStatus = async (quoteId, payload) => {
     })
   );
 
-  await quote.save();
+  await quote.save(session ? { session } : undefined);
 
-  const updatedQuote = await populateQuoteQuery(Quote.findById(quote._id));
-  return mapQuoteToClientDTO(updatedQuote);
+  let convertedOrder = null;
+
+  if (
+    transition.actorRole === "GM" &&
+    transition.action === APPROVAL_ACTIONS.APPROVE &&
+    toStatus === "Approved"
+  ) {
+    convertedOrder = await orderConversionService.createOrderFromApprovedQuote(quote, {
+      session,
+    });
+  }
+
+  await notificationService.createApprovalStatusNotification({
+    quote,
+    transition,
+    actor,
+    fromStatus,
+    toStatus,
+    note: payload.note,
+    session,
+  });
+
+  const updatedQuery = populateQuoteQuery(Quote.findById(quote._id));
+  const updatedQuote =
+    session && typeof updatedQuery.session === "function"
+      ? await updatedQuery.session(session)
+      : await updatedQuery;
+  const quoteDto = mapQuoteToClientDTO(updatedQuote);
+
+  if (convertedOrder) {
+    return {
+      quote: quoteDto,
+      order: convertedOrder,
+    };
+  }
+
+  return quoteDto;
+};
+
+const updateQuoteStatus = async (quoteId, payload) => {
+  const actorRole = payload.actor?.role || payload.actorRole;
+  const action = String(payload.action || "").trim().toLowerCase().replace(/\s+/g, "_");
+  const shouldUseTransaction =
+    isDatabaseConnected() && actorRole === "GM" && action === APPROVAL_ACTIONS.APPROVE;
+
+  if (!shouldUseTransaction) {
+    return updateQuoteStatusWithoutTransaction(quoteId, payload);
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    let result = null;
+
+    await session.withTransaction(async () => {
+      result = await updateQuoteStatusWithoutTransaction(quoteId, payload, session);
+    });
+
+    return result;
+  } finally {
+    await session.endSession();
+  }
 };
 
 module.exports = {

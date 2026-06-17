@@ -1,31 +1,76 @@
-import React, { useState, useEffect, useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useState, useEffect, useContext, useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 
-const STATUS_FILTER_OPTIONS = [
-  { value: "Draft", label: "Draft" },
-  { value: "Pending", label: "Pending HOD" },
-  { value: "Processing", label: "Pending SC" },
-  { value: "PendingApproval", label: "Pending GM" },
-  { value: "Approved", label: "Approved" },
-  { value: "Rejected", label: "Rejected" },
-  { value: "AskedForEdit", label: "Edit Required" },
-];
+const ROLE_QUEUE_CONFIG = {
+  HOD: {
+    status: "Pending",
+    tabLabel: "HOD Review Queue",
+    title: "HOD Review Queue",
+    helper: "Pending HOD quotes awaiting approval to SC Head queue.",
+  },
+  SC_HEAD: {
+    status: "Processing",
+    tabLabel: "SC Head Queue",
+    title: "SC Head Review Queue",
+    helper: "Pending SC Head quotes awaiting approval to GM queue.",
+  },
+  GM: {
+    status: "PendingApproval",
+    tabLabel: "GM Queue",
+    title: "GM Review Queue",
+    helper: "Pending GM quotes awaiting final approval.",
+  },
+};
+
+const TAB_VIEW_CONFIG = {
+  active_orders: {
+    title: "Active Orders",
+    helper: "Quotes currently moving through HOD, SC Head, or GM approval.",
+    statuses: ["Pending", "Processing", "PendingApproval"],
+    emptyMessage: "No active approval orders found.",
+  },
+  quotes: {
+    title: "Quotes List",
+    excludeStatuses: ["Rejected", "AskedForEdit"],
+    emptyMessage: "No live quotes found.",
+  },
+  upcoming: {
+    title: "Upcoming Draft Quotes",
+    helper: "Draft quotes that Sales/SC can still edit before submitting to approval.",
+    statuses: ["Draft"],
+    emptyMessage: "No draft quotes are waiting in Upcoming.",
+  },
+  on_hold: {
+    title: "On Hold Quotes",
+    helper: "Quotes sent back for edit. Sales can update and resubmit these into approval.",
+    statuses: ["AskedForEdit"],
+    emptyMessage: "No quotes are currently on hold.",
+  },
+  cancelled: {
+    title: "Cancelled Quotes",
+    helper: "Rejected quotes stay here as read-only history for audit.",
+    statuses: ["Rejected"],
+    emptyMessage: "No cancelled quotes found.",
+  },
+};
+
+const ARCHIVE_MAIN_TABS = ["on_hold", "cancelled"];
 
 export const QuoteList = () => {
   const { currentUser } = useContext(AuthContext);
+  const location = useLocation();
   const navigate = useNavigate();
+  const roleQueueConfig = ROLE_QUEUE_CONFIG[currentUser?.role];
   const [quotes, setQuotes] = useState([]);
-  const [filteredQuotes, setFilteredQuotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [draftStatuses, setDraftStatuses] = useState([]);
-  const [activeTab, setActiveTab] = useState("quotes"); // "quotes" is active by default as in Figma
+  const [activeTab, setActiveTab] = useState(roleQueueConfig ? "my_queue" : "quotes");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const availableStatuses = [
     { value: "Draft", label: "Draft" },
@@ -45,45 +90,43 @@ export const QuoteList = () => {
     }
   };
 
-  const fetchQuotes = async () => {
-    try {
-      const response = await apiService.getQuotes();
-      setQuotes(response.data);
-      setFilteredQuotes(response.data);
-    } catch (error) {
-      console.error("Error fetching quotes list:", error);
-    }
-  };
-
-  const toggleDraftStatus = (status) => {
-    setDraftStatuses((currentStatuses) =>
-      currentStatuses.includes(status)
-        ? currentStatuses.filter((item) => item !== status)
-        : [...currentStatuses, status]
-    );
-  };
-
-  const openFilterPanel = () => {
-    setDraftStatuses(selectedStatuses);
-    setIsFilterOpen((currentValue) => !currentValue);
-  };
-
-  const applyStatusFilter = () => {
-    setSelectedStatuses(draftStatuses);
-    setIsFilterOpen(false);
-  };
-
-  const resetStatusFilter = () => {
-    setDraftStatuses([]);
-    setSelectedStatuses([]);
-  };
-
   useEffect(() => {
-    fetchQuotes();
+    let isMounted = true;
+
+    apiService
+      .getQuotes()
+      .then((response) => {
+        if (isMounted) {
+          setQuotes(response.data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching quotes list:", error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Filter & Search Logic
   useEffect(() => {
+    if (!location.state?.toast) return;
+
+    setToastMessage(location.state.toast);
+    navigate(location.pathname, { replace: true, state: {} });
+
+    const timeoutId = window.setTimeout(() => {
+      setToastMessage("");
+    }, 3500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [location.pathname, location.state, navigate]);
+
+  const effectiveActiveTab =
+    activeTab === "my_queue" && !roleQueueConfig ? "quotes" : activeTab;
+  const activeTabConfig = TAB_VIEW_CONFIG[effectiveActiveTab];
+
+  const filteredQuotes = useMemo(() => {
     let result = [...quotes];
 
     // Search query filter
@@ -117,26 +160,14 @@ export const QuoteList = () => {
     // Tab filter
     // If status filter is active, status filter takes priority so Rejected/Edit Required can still appear.
     if (selectedStatuses.length === 0) {
-      if (activeTab === "active_orders") {
+      if (effectiveActiveTab === "my_queue" && roleQueueConfig) {
+        result = result.filter((q) => q.status === roleQueueConfig.status);
+      } else if (activeTabConfig?.statuses) {
+        result = result.filter((q) => activeTabConfig.statuses.includes(q.status));
+      } else if (activeTabConfig?.excludeStatuses) {
         result = result.filter(
-          (q) =>
-            q.status === "Pending" ||
-            q.status === "Processing" ||
-            q.status === "PendingApproval"
+          (q) => !activeTabConfig.excludeStatuses.includes(q.status)
         );
-      } else if (activeTab === "quotes") {
-        // In Figma "Quotes" tab shows active/approved quotes, excluding rejected/edit required which are at the bottom
-        result = result.filter(
-          (q) =>
-            q.status !== "Rejected" &&
-            q.status !== "AskedForEdit"
-        );
-      } else if (activeTab === "upcoming") {
-        result = [];
-      } else if (activeTab === "on_hold") {
-        result = [];
-      } else if (activeTab === "cancelled") {
-        result = [];
       }
     }
 
@@ -145,8 +176,8 @@ export const QuoteList = () => {
       result = result.filter((q) => selectedStatuses.includes(q.status));
     }
 
-    setFilteredQuotes(result);
-  }, [searchQuery, selectedStatuses, activeTab, quotes]);
+    return result;
+  }, [searchQuery, selectedStatuses, effectiveActiveTab, quotes, roleQueueConfig, activeTabConfig]);
 
   const formatCurrency = (value) => {
     return "S$" + new Intl.NumberFormat("en-US", {
@@ -159,20 +190,13 @@ export const QuoteList = () => {
     return String(num || "").replace("#", "#QT-");
   };
 
-  const translateStatus = (status) => {
-    if (status === "Pending") return "Pending HOD";
-    if (status === "Processing") return "Pending SC";
-    if (status === "PendingApproval") return "Pending GM";
-    if (status === "AskedForEdit") return "Edit Required";
-    return status;
-  };
-
-  const isStatusFilterApplied = selectedStatuses.length > 0;
-
   // Separate active/approved quotes from rejected/edit-required quotes
   const activeQuotesList = filteredQuotes.filter(
     (q) => q.status !== "Rejected" && q.status !== "AskedForEdit"
   );
+  const showArchiveStatusesInMainGrid = ARCHIVE_MAIN_TABS.includes(effectiveActiveTab);
+  const visibleMainQuotes = showArchiveStatusesInMainGrid ? filteredQuotes : activeQuotesList;
+  const shouldShowArchiveSection = !showArchiveStatusesInMainGrid;
 
   // Rejected section: always base on full quotes list, but apply selectedStatuses filter
   // if user has selected Rejected/AskedForEdit statuses
@@ -189,9 +213,34 @@ export const QuoteList = () => {
 
   // Auto-open archive when user filters by Rejected or AskedForEdit
   const autoShowArchive = rejectedFilterStatuses.length > 0;
+  const emptyMessage =
+    selectedStatuses.length > 0
+      ? "No quotes found matching the active filters."
+      : activeTabConfig?.emptyMessage || "No quotes found matching the active filters.";
 
   return (
     <div className="fade-in">
+      {toastMessage && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            top: "1rem",
+            right: "1rem",
+            zIndex: 600,
+            backgroundColor: "var(--success)",
+            color: "#ffffff",
+            padding: "0.8rem 1rem",
+            borderRadius: "var(--radius-sm)",
+            boxShadow: "var(--shadow-md)",
+            fontWeight: 800,
+            fontSize: "0.9rem",
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
+
       {/* Navigation Header (Trang Documents) - Figma horizontal tab layout */}
       <div className="tabs-nav" style={{
         display: "flex",
@@ -200,36 +249,45 @@ export const QuoteList = () => {
         marginBottom: "2rem",
         overflowX: "auto"
       }}>
+        {roleQueueConfig && (
+          <button
+            className={`tab-btn ${effectiveActiveTab === "my_queue" ? "active" : ""}`}
+            onClick={() => setActiveTab("my_queue")}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {roleQueueConfig.tabLabel}
+          </button>
+        )}
         <button
-          className={`tab-btn ${activeTab === "active_orders" ? "active" : ""}`}
+          className={`tab-btn ${effectiveActiveTab === "active_orders" ? "active" : ""}`}
           onClick={() => setActiveTab("active_orders")}
           style={{ whiteSpace: "nowrap" }}
         >
           Active Orders
         </button>
         <button
-          className={`tab-btn ${activeTab === "quotes" ? "active" : ""}`}
+          className={`tab-btn ${effectiveActiveTab === "quotes" ? "active" : ""}`}
           onClick={() => setActiveTab("quotes")}
           style={{ whiteSpace: "nowrap" }}
         >
           Quotes
         </button>
         <button
-          className={`tab-btn ${activeTab === "upcoming" ? "active" : ""}`}
+          className={`tab-btn ${effectiveActiveTab === "upcoming" ? "active" : ""}`}
           onClick={() => setActiveTab("upcoming")}
           style={{ whiteSpace: "nowrap" }}
         >
           Upcoming
         </button>
         <button
-          className={`tab-btn ${activeTab === "on_hold" ? "active" : ""}`}
+          className={`tab-btn ${effectiveActiveTab === "on_hold" ? "active" : ""}`}
           onClick={() => setActiveTab("on_hold")}
           style={{ whiteSpace: "nowrap" }}
         >
           On Hold
         </button>
         <button
-          className={`tab-btn ${activeTab === "cancelled" ? "active" : ""}`}
+          className={`tab-btn ${effectiveActiveTab === "cancelled" ? "active" : ""}`}
           onClick={() => setActiveTab("cancelled")}
           style={{ whiteSpace: "nowrap" }}
         >
@@ -245,7 +303,9 @@ export const QuoteList = () => {
         marginBottom: "2rem"
       }} className="action-bar-wrapper">
         <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-          Quotes List
+          {effectiveActiveTab === "my_queue" && roleQueueConfig
+            ? roleQueueConfig.title
+            : activeTabConfig?.title || "Quotes List"}
         </h2>
 
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -369,24 +429,62 @@ export const QuoteList = () => {
         </div>
       )}
 
+      {effectiveActiveTab === "my_queue" && roleQueueConfig && selectedStatuses.length === 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "1.5rem",
+            padding: "1rem 1.25rem",
+            borderLeft: "4px solid var(--primary)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700 }}>
+            {roleQueueConfig.helper}
+          </div>
+        </div>
+      )}
+
+      {effectiveActiveTab !== "my_queue" && activeTabConfig?.helper && selectedStatuses.length === 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "1.5rem",
+            padding: "1rem 1.25rem",
+            borderLeft: "4px solid var(--primary)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700 }}>
+            {activeTabConfig.helper}
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
-      {filteredQuotes.length === 0 ? (
+      {visibleMainQuotes.length === 0 ? (
         <div className="card" style={{ padding: "4rem", textAlign: "center", color: "var(--text-secondary)" }}>
-          No quotes found matching the active filters.
+          {emptyMessage}
         </div>
       ) : (
         <>
           {/* Desktop Cards Grid View */}
           <div className="desktop-quotes-grid">
-            {activeQuotesList.map((q) => {
+            {visibleMainQuotes.map((q) => {
               const items = Array.isArray(q.items) ? q.items : [];
+              const latestLog = Array.isArray(q.history) ? q.history[q.history.length - 1] : null;
+              const isArchiveStatus = q.status === "Rejected" || q.status === "AskedForEdit";
               const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
               const total = subtotal - discount + tax;
 
               return (
-                <div key={q.id} className="desktop-quote-card fade-in">
+                <div
+                  key={q.id}
+                  className="desktop-quote-card fade-in"
+                  style={isArchiveStatus ? { borderTop: q.status === "AskedForEdit" ? "4px solid var(--warning)" : "4px solid var(--danger)" } : undefined}
+                >
                   <div className="desktop-quote-card-header">
                     <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
                     <StatusBadge status={q.status} />
@@ -414,6 +512,12 @@ export const QuoteList = () => {
                     </div>
                   </div>
 
+                  {isArchiveStatus && latestLog?.note && (
+                    <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", marginTop: "0.5rem", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: q.status === "AskedForEdit" ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
+                      Reason: "{latestLog.note}"
+                    </div>
+                  )}
+
                   <div className="desktop-quote-card-footer">
                     <div className="desktop-quote-card-total-group">
                       <span className="desktop-quote-card-total-label">Total Quote:</span>
@@ -425,7 +529,7 @@ export const QuoteList = () => {
                       </Link>
                       {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                         <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>
-                          Edit
+                          {q.status === "AskedForEdit" ? "Resubmit" : "Edit"}
                         </Link>
                       )}
                     </div>
@@ -437,8 +541,10 @@ export const QuoteList = () => {
 
           {/* Mobile Stacked Card View */}
           <div className="mobile-quotes-list">
-            {filteredQuotes.map((q) => {
+            {visibleMainQuotes.map((q) => {
               const items = Array.isArray(q.items) ? q.items : [];
+              const latestLog = Array.isArray(q.history) ? q.history[q.history.length - 1] : null;
+              const isArchiveStatus = q.status === "Rejected" || q.status === "AskedForEdit";
               const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
@@ -484,13 +590,19 @@ export const QuoteList = () => {
                     <span className="mobile-quote-card-total-value">{formatCurrency(total)}</span>
                   </div>
 
+                  {isArchiveStatus && latestLog?.note && (
+                    <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: q.status === "AskedForEdit" ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
+                      Reason: "{latestLog.note}"
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                       Details
                     </Link>
                     {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
-                        Edit
+                        {q.status === "AskedForEdit" ? "Resubmit" : "Edit"}
                       </Link>
                     )}
                   </div>
@@ -502,10 +614,11 @@ export const QuoteList = () => {
       )}
 
       {/* Rejected Quotes Section */}
+      {shouldShowArchiveSection && (
       <div style={{ marginTop: "3.5rem", textAlign: "left" }} className="rejected-section-wrapper">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-            Rejected Quotes
+            Rejected & Edit Required Quotes
             {rejectedFilterStatuses.length > 0 && (
               <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginLeft: "0.5rem" }}>
                 ({rejectedAndEditQuotes.length} filtered)
@@ -529,9 +642,10 @@ export const QuoteList = () => {
           ) : (
             <div className="rejected-quotes-grid">
               {rejectedAndEditQuotes.map((q) => {
-                const latestLog = q.history[q.history.length - 1];
+                const latestLog = Array.isArray(q.history) ? q.history[q.history.length - 1] : null;
                 const isEdit = q.status === "AskedForEdit";
-                const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+                const items = Array.isArray(q.items) ? q.items : [];
+                const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
                 const discount = subtotal * 0.05;
                 const tax = (subtotal - discount) * 0.1;
                 const total = subtotal - discount + tax;
@@ -545,7 +659,7 @@ export const QuoteList = () => {
 
                     <div className="desktop-quote-card-title-row">
                       <div className="desktop-quote-card-id">{q.quoteNumber}</div>
-                      <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
+                      <div className="desktop-quote-card-customer">{q.customer?.companyName || q.companyName || "N/A"}</div>
                     </div>
 
                     <div className="desktop-quote-card-specs">
@@ -578,7 +692,7 @@ export const QuoteList = () => {
                         <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                           Details
                         </Link>
-                        {currentUser.role === "Sales" && (
+                        {currentUser?.role === "Sales" && isEdit && (
                           <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                             Resubmit
                           </Link>
@@ -592,6 +706,7 @@ export const QuoteList = () => {
           )
         )}
       </div>
+      )}
     </div>
   );
 };

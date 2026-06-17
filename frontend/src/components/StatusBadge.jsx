@@ -1,5 +1,3 @@
-import React from "react";
-
 const translateStatus = (status) => {
   if (status === "Pending") return "Pending HOD";
   if (status === "Processing") return "Pending SC";
