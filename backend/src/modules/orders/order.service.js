@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Order = require("./order.model");
 const Quote = require("../quotes/quote.model");
 const {
+  DEFAULT_ORDER_DETAIL_ROWS,
   DEFAULT_ORDER_TOTAL_LABEL,
   mockOrderPreviews,
 } = require("../../seed/order.seed-data");
@@ -12,6 +13,32 @@ const buildOrderNumber = (quoteNumber) => {
   const normalizedQuoteNumber = String(quoteNumber || "12345").replace(/^#/, "");
   return `ORD-${normalizedQuoteNumber}`;
 };
+
+const mapOrderRows = (rows = []) =>
+  (rows.length > 0 ? rows : DEFAULT_ORDER_DETAIL_ROWS).map((row) => ({
+    boxStyle: row.boxStyle || "Corrugated",
+    type: row.type || "RSC",
+    dimension: row.dimension || "ID (L x W x H mm)",
+    fluteType: row.fluteType || "B",
+    boardQuality: row.boardQuality || "150 GSM",
+    colors: row.colors || "2",
+    joints: row.joints || "Glue",
+    moq: String(row.moq || "5000"),
+  }));
+
+const mapQuoteItemsToOrderRows = (items = []) =>
+  items.length > 0
+    ? items.map((item) => ({
+        boxStyle: item.boxStyle || "Corrugated",
+        type: item.type || "RSC",
+        dimension: item.dimension || "ID (L x W x H mm)",
+        fluteType: item.fluteType || "B",
+        boardQuality: item.boardQuality || "150 GSM",
+        colors: item.colors || "2",
+        joints: item.joints || "Glue",
+        moq: String(item.moq || item.quantity || "5000"),
+      }))
+    : DEFAULT_ORDER_DETAIL_ROWS;
 
 const buildOrderListItem = (order) => ({
   id: order.id || String(order._id || ""),
@@ -32,22 +59,15 @@ const buildOrderListItem = (order) => ({
       order.customerId?.contactName ||
       "Contact placeholder",
   },
-  orderDetails: {
-    boxStyle: order.orderDetails?.boxStyle || "Corrugated",
-    type: order.orderDetails?.type || "RSC",
-    dimension: order.orderDetails?.dimension || "ID (L x W x H mm)",
-    fluteType: order.orderDetails?.fluteType || "B",
-    boardQuality: order.orderDetails?.boardQuality || "150 GSM",
-    colors: order.orderDetails?.colors || "2",
-    joints: order.orderDetails?.joints || "Glue",
-    moq: order.orderDetails?.moq || "5k",
-  },
+  orderDetailsRows: mapOrderRows(
+    order.orderDetailsRows || (order.orderDetails ? [order.orderDetails] : [])
+  ),
 });
 
 const buildOrderPreviewFromOrder = (order) => ({
-  orderId: order.orderNumber,
+  orderId: order.orderNumber || order.orderId,
   quoteId: String(order.quoteId?._id || order.quoteId || ""),
-  quoteNumber: order.quoteId?.quoteNumber || "#12345",
+  quoteNumber: order.quoteId?.quoteNumber || order.quoteNumber || "#12345",
   status: order.status || "Draft",
   quoteTotalLabel: order.quoteTotalLabel || DEFAULT_ORDER_TOTAL_LABEL,
   customer: {
@@ -71,17 +91,18 @@ const buildOrderPreviewFromOrder = (order) => ({
       order.customerSnapshot?.address ||
       order.customerId?.address ||
       "Customer address placeholder",
+    billingAddress:
+      order.customerSnapshot?.billingAddress ||
+      order.customerId?.address ||
+      "Billing address placeholder",
+    deliveryAddress:
+      order.customerSnapshot?.deliveryAddress ||
+      order.customerId?.address ||
+      "Delivery address placeholder",
   },
-  orderDetails: {
-    boxStyle: order.orderDetails?.boxStyle || "Corrugated",
-    type: order.orderDetails?.type || "RSC",
-    dimension: order.orderDetails?.dimension || "ID (L x W x H mm)",
-    fluteType: order.orderDetails?.fluteType || "B",
-    boardQuality: order.orderDetails?.boardQuality || "150 GSM",
-    colors: order.orderDetails?.colors || "2",
-    joints: order.orderDetails?.joints || "Glue",
-    moq: order.orderDetails?.moq || "5k",
-  },
+  orderDetailsRows: mapOrderRows(
+    order.orderDetailsRows || (order.orderDetails ? [order.orderDetails] : [])
+  ),
 });
 
 const getOrders = async () => {
@@ -98,32 +119,25 @@ const getOrders = async () => {
   return orders.map(buildOrderListItem);
 };
 
-const buildOrderPreviewFromQuote = (quote) => {
-  return {
-    orderId: buildOrderNumber(quote.quoteNumber),
-    quoteId: String(quote._id),
-    quoteNumber: quote.quoteNumber,
-    status: "Draft",
-    quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
-    customer: {
-      companyName: quote.customerId?.companyName || "Customer placeholder",
-      contactName: quote.customerId?.contactName || "Contact placeholder",
-      email: quote.customerId?.email || "customer@example.com",
-      phone: quote.customerId?.phone || "+65 6000 0000",
-      address: quote.customerId?.address || "Customer address placeholder",
-    },
-    orderDetails: {
-      boxStyle: quote.parameters?.boxStyle || "Corrugated",
-      type: quote.type || "RSC",
-      dimension: quote.dimension || "ID (L x W x H mm)",
-      fluteType: quote.parameters?.flute || "B",
-      boardQuality: quote.boardQuality || "150 GSM",
-      colors: quote.colors || "2",
-      joints: quote.joints || "Glue",
-      moq: quote.parameters?.moq || "5k",
-    },
-  };
-};
+const buildOrderPreviewFromQuote = (quote) => ({
+  orderId: buildOrderNumber(quote.quoteNumber),
+  quoteId: String(quote._id),
+  quoteNumber: quote.quoteNumber || "#12345",
+  status: "Draft",
+  quoteTotalLabel: DEFAULT_ORDER_TOTAL_LABEL,
+  customer: {
+    companyName: quote.clientDetails?.companyName || quote.customerId?.companyName || "Customer placeholder",
+    contactName: quote.clientDetails?.contactPerson || quote.customerId?.contactName || "Contact placeholder",
+    email: quote.clientDetails?.email || quote.customerId?.email || "customer@example.com",
+    phone: quote.clientDetails?.phoneNumber || quote.customerId?.phone || "+65 6000 0000",
+    address: quote.clientDetails?.companyAddress || quote.customerId?.address || "Customer address placeholder",
+    billingAddress:
+      quote.clientDetails?.billingAddress || quote.customerId?.address || "Billing address placeholder",
+    deliveryAddress:
+      quote.clientDetails?.deliveryAddress || quote.customerId?.address || "Delivery address placeholder",
+  },
+  orderDetailsRows: mapQuoteItemsToOrderRows(quote.items || []),
+});
 
 const getOrderForm = async (quoteId) => {
   if (!quoteId || !isDatabaseConnected() || !mongoose.isValidObjectId(quoteId)) {

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 
 export const Dashboard = () => {
   const { currentUser } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
   const [showArchive, setShowArchive] = useState(false);
   const [stats, setStats] = useState({
@@ -47,6 +48,8 @@ export const Dashboard = () => {
         } else if (currentUser.role === "SC_HEAD" && q.status === "Processing") {
           actionCount++;
         } else if (currentUser.role === "GM" && q.status === "PendingApproval") {
+          actionCount++;
+        } else if (currentUser.role === "Planning" && q.status === "Approved") {
           actionCount++;
         }
       });
@@ -92,7 +95,7 @@ export const Dashboard = () => {
 
   return (
     <div className="fade-in">
-      {/* Banner chào mừng theo Figma */}
+      {/* Welcome banner matching Figma design */}
       <div
         className="card"
         style={{
@@ -113,8 +116,9 @@ export const Dashboard = () => {
           <p style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             {currentUser.role === "Sales" && "Start creating packaging quotes or manage resubmissions."}
             {currentUser.role === "HOD" && `You have ${stats.pendingAction} quotes pending Head of Department approval.`}
-            {currentUser.role === "SC_HEAD" && `You have ${stats.pendingAction} quotes pending Supply Chain Head unit price review.`}
+            {currentUser.role === "SC_HEAD" && `You have ${stats.pendingAction} quotes pending Supply Chain Head review.`}
             {currentUser.role === "GM" && `You have ${stats.pendingAction} quotes pending General Manager final approval.`}
+            {currentUser.role === "Planning" && `You have ${stats.pendingAction} approved quotes ready for planning review.`}
           </p>
         </div>
         {currentUser.role === "Sales" && (
@@ -155,9 +159,28 @@ export const Dashboard = () => {
 
       {/* Active Quotes Layout */}
       <div style={{ textAlign: "left", marginBottom: "3rem" }}>
-        <div style={{ display: "flex", justifyContext: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <h2>Quotes List</h2>
-          <Link to="/quotes" className="btn btn-secondary btn-sm">View All</Link>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+            gap: "1rem",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Quotes List</h2>
+
+          <Link
+            to="/quotes"
+            className="btn btn-secondary btn-sm"
+            style={{
+              padding: "0.5rem 0.9rem",
+              whiteSpace: "nowrap",
+              fontWeight: 700,
+            }}
+          >
+            View All
+          </Link>
         </div>
 
         {activeQuotes.length === 0 ? (
@@ -227,6 +250,9 @@ export const Dashboard = () => {
                   <div key={q.id} className="mobile-quote-card fade-in">
                     <div className="mobile-quote-card-header">
                       <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</span>
+                      <span className={`status-badge status-${q.status}`}>
+                        {translateStatus(q.status)}
+                      </span>
                       <StatusBadge status={q.status}>
                         {q.status === "Pending" ? "Pending" : 
                          q.status === "Processing" ? "Active" :
@@ -286,6 +312,67 @@ export const Dashboard = () => {
           </a>
         </div>
 
+        {rejectedAndEditQuotes.length === 0 ? (
+          <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
+            No rejected or changes-requested quotes in the archive queue.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+            {rejectedAndEditQuotes.map((q) => {
+              const approvalHistory = Array.isArray(q.approvalHistory)
+                ? q.approvalHistory
+                : [];
+
+              const history = Array.isArray(q.history)
+                ? q.history
+                : [];
+
+              const latestLog =
+                approvalHistory[approvalHistory.length - 1] ||
+                history[history.length - 1];
+              const isEdit = q.status === "AskedForEdit";
+              const canClickToEdit = currentUser.role === "Sales" && isEdit;
+
+              const handleCardClick = (e) => {
+                if (
+                  e.target.tagName === "A" ||
+                  e.target.closest("a") ||
+                  e.target.tagName === "BUTTON" ||
+                  e.target.closest("button")
+                ) {
+                  return;
+                }
+                if (canClickToEdit) {
+                  navigate(`/quotes/edit/${q.id}`);
+                } else {
+                  navigate(`/quotes/${q.id}`);
+                }
+              };
+              
+              return (
+                <div
+                  key={q.id}
+                  className="card"
+                  onClick={handleCardClick}
+                  style={{
+                    borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)",
+                    padding: "1.25rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                    <div>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>
+                        Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {formatMobileQuoteNumber(q.quoteNumber)}
+                      </span>
+                      <h3 style={{ margin: "4px 0 0 0", fontSize: "1.1rem" }}>
+                        {isEdit ? "Asked for edit" : latestLog?.note || "Budget Constraint"}
+                      </h3>
+                    </div>
+                    <span className={`status-badge status-${q.status}`}>
+                      {isEdit ? "Edit Required" : "Rejected"}
+                    </span>
+                  </div>
         {showArchive && (
           rejectedAndEditQuotes.length === 0 ? (
             <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
@@ -332,6 +419,10 @@ export const Dashboard = () => {
                       </div>
                     </div>
 
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                    <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
+                    {currentUser.role === "Sales" && isEdit && (
+                      <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
                     {latestLog?.note && (
                       <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: isEdit ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
                         Reason: "{latestLog.note}"

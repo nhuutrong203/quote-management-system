@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const User = require("./user.model");
 
-const ALLOWED_ROLES = ["Sales", "HOD", "SC_HEAD", "GM"];
+const ALLOWED_ROLES = ["Sales", "HOD", "SC_HEAD", "GM", "Planning"];
 
 const mockUsers = [
   {
@@ -44,9 +44,21 @@ const mockUsers = [
     createdAt: new Date(),
     updatedAt: new Date(),
   },
+  {
+    _id: "mock-user-planning",
+    name: "Planning Singapore",
+    email: "planning@amb.com.sg",
+    password: "demo1234",
+    role: "Planning",
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
 ];
 
 const isDatabaseConnected = () => mongoose.connection.readyState === 1;
+
+const buildAuthToken = (userId) => `mock-token-${String(userId || "")}`;
 
 const sanitizeUser = (user) => {
   if (!user) return null;
@@ -167,7 +179,7 @@ const login = async ({ email, password }) => {
 
   return {
     user: safeUser,
-    token: `mock-token-${safeUser.role.toLowerCase()}`,
+    token: buildAuthToken(safeUser._id || safeUser.id),
   };
 };
 
@@ -176,4 +188,5 @@ module.exports = {
   getUserById,
   signup,
   login,
+  buildAuthToken,
 };

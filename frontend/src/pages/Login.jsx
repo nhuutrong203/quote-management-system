@@ -121,11 +121,11 @@ export const Login = () => {
     setError("");
 
     if (!email.trim()) {
-      setError("Email không được để trống.");
+      setError("Email cannot be empty.");
       return;
     }
     if (!password) {
-      setError("Mật khẩu không được để trống.");
+      setError("Password cannot be empty.");
       return;
     }
 
@@ -147,18 +147,18 @@ export const Login = () => {
       if (err.response) {
         const status = err.response.status;
         if (status === 401) {
-          setError("Email hoặc mật khẩu không chính xác.");
+          setError("Incorrect email or password.");
         } else if (status === 403) {
-          setError("Tài khoản đang chờ Admin phê duyệt.");
+          setError("Account is pending Admin approval.");
         } else if (status === 429) {
           const retryAfter = err.response.data?.retryAfter || err.response.headers?.['retry-after'] || 30;
-          setError(`Sai quá nhiều lần. Hãy thử lại sau ${retryAfter} giây.`);
+          setError(`Too many attempts. Please try again after ${retryAfter} seconds.`);
           startRetryTimer(retryAfter);
         } else {
-          setError(err.response.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+          setError(err.response.data?.message || "Login failed. Please try again.");
         }
       } else {
-        setError("Không thể kết nối đến máy chủ.");
+        setError("Unable to connect to the server.");
       }
     } finally {
       setLoading(false);
@@ -275,7 +275,7 @@ export const Login = () => {
               {loading ? (
                 "Signing In..."
               ) : retryTime > 0 ? (
-                `Thử lại sau ${retryTime}s`
+                `Retry in ${retryTime}s`
               ) : (
                 <>
                   Sign In <ArrowRight />

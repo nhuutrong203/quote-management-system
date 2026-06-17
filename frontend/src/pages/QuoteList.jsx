@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 
+const STATUS_FILTER_OPTIONS = [
+  { value: "Draft", label: "Draft" },
+  { value: "Pending", label: "Pending HOD" },
+  { value: "Processing", label: "Pending SC" },
+  { value: "PendingApproval", label: "Pending GM" },
+  { value: "Approved", label: "Approved" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "AskedForEdit", label: "Edit Required" },
+];
+
 export const QuoteList = () => {
   const { currentUser } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
   const [filteredQuotes, setFilteredQuotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [draftStatuses, setDraftStatuses] = useState([]);
   const [activeTab, setActiveTab] = useState("quotes"); // "quotes" is active by default as in Figma
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
@@ -42,6 +56,29 @@ export const QuoteList = () => {
     }
   };
 
+  const toggleDraftStatus = (status) => {
+    setDraftStatuses((currentStatuses) =>
+      currentStatuses.includes(status)
+        ? currentStatuses.filter((item) => item !== status)
+        : [...currentStatuses, status]
+    );
+  };
+
+  const openFilterPanel = () => {
+    setDraftStatuses(selectedStatuses);
+    setIsFilterOpen((currentValue) => !currentValue);
+  };
+
+  const applyStatusFilter = () => {
+    setSelectedStatuses(draftStatuses);
+    setIsFilterOpen(false);
+  };
+
+  const resetStatusFilter = () => {
+    setDraftStatuses([]);
+    setSelectedStatuses([]);
+  };
+
   useEffect(() => {
     fetchQuotes();
   }, []);
@@ -52,36 +89,56 @@ export const QuoteList = () => {
 
     // Search query filter
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (q) =>
-          q.quoteNumber.toLowerCase().includes(query) ||
-          q.customer.companyName.toLowerCase().includes(query) ||
-          q.customer.contactName.toLowerCase().includes(query)
-      );
+      const query = searchQuery.trim().toLowerCase();
+
+      result = result.filter((q) => {
+        const quoteNumber = String(q.quoteNumber || "").toLowerCase();
+
+        const companyName = String(
+          q.companyName || q.customer?.companyName || ""
+        ).toLowerCase();
+
+        const contactName = String(
+          q.contactName || q.customer?.contactName || ""
+        ).toLowerCase();
+
+        return (
+          quoteNumber.includes(query) ||
+          companyName.includes(query) ||
+          contactName.includes(query)
+        );
+      });
+    }
+
+    // Status checkbox filter
+    if (selectedStatuses.length > 0) {
+      result = result.filter((q) => selectedStatuses.includes(q.status));
     }
 
     // Tab filter
-    if (activeTab === "active_orders") {
-      result = result.filter(
-        (q) =>
-          q.status === "Pending" ||
-          q.status === "Processing" ||
-          q.status === "PendingApproval"
-      );
-    } else if (activeTab === "quotes") {
-      // In Figma "Quotes" tab shows active/approved orders, excluding rejected/edit required which are at the bottom
-      result = result.filter(
-        (q) =>
-          q.status !== "Rejected" &&
-          q.status !== "AskedForEdit"
-      );
-    } else if (activeTab === "upcoming") {
-      result = [];
-    } else if (activeTab === "on_hold") {
-      result = [];
-    } else if (activeTab === "cancelled") {
-      result = [];
+    // If status filter is active, status filter takes priority so Rejected/Edit Required can still appear.
+    if (selectedStatuses.length === 0) {
+      if (activeTab === "active_orders") {
+        result = result.filter(
+          (q) =>
+            q.status === "Pending" ||
+            q.status === "Processing" ||
+            q.status === "PendingApproval"
+        );
+      } else if (activeTab === "quotes") {
+        // In Figma "Quotes" tab shows active/approved quotes, excluding rejected/edit required which are at the bottom
+        result = result.filter(
+          (q) =>
+            q.status !== "Rejected" &&
+            q.status !== "AskedForEdit"
+        );
+      } else if (activeTab === "upcoming") {
+        result = [];
+      } else if (activeTab === "on_hold") {
+        result = [];
+      } else if (activeTab === "cancelled") {
+        result = [];
+      }
     }
 
     // Additional status checklist filters
@@ -90,7 +147,7 @@ export const QuoteList = () => {
     }
 
     setFilteredQuotes(result);
-  }, [searchQuery, activeTab, quotes, selectedStatuses]);
+  }, [searchQuery, selectedStatuses, activeTab, quotes]);
 
   const formatCurrency = (value) => {
     return "S$" + new Intl.NumberFormat("en-US", {
@@ -100,7 +157,7 @@ export const QuoteList = () => {
   };
 
   const formatMobileQuoteNumber = (num) => {
-    return num.replace("#", "#QT-");
+    return String(num || "").replace("#", "#QT-");
   };
 
   const translateStatus = (status) => {
@@ -110,6 +167,8 @@ export const QuoteList = () => {
     if (status === "AskedForEdit") return "Edit Required";
     return status;
   };
+
+  const isStatusFilterApplied = selectedStatuses.length > 0;
 
   // Separate active/approved quotes from rejected/edit-required quotes
   const activeQuotesList = filteredQuotes.filter(
@@ -227,16 +286,23 @@ export const QuoteList = () => {
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
             </svg>
             Filter
+            {selectedStatuses.length > 0 && (
+              <span style={{ fontSize: "0.75rem", fontWeight: 800 }}>
+                ({selectedStatuses.length})
+              </span>
+            )}
           </button>
 
           {/* New Quote Button */}
-          <Link to="/quotes/new" className="btn btn-primary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            New Quote
-          </Link>
+          {currentUser?.role === "Sales" && (
+            <Link to="/quotes/new" className="btn btn-primary" style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              New Quote
+            </Link>
+          )}
         </div>
       </div>
 
@@ -314,7 +380,8 @@ export const QuoteList = () => {
           {/* Desktop Cards Grid View */}
           <div className="desktop-quotes-grid">
             {activeQuotesList.map((q) => {
-              const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+              const items = Array.isArray(q.items) ? q.items : [];
+              const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
               const total = subtotal - discount + tax;
@@ -328,7 +395,9 @@ export const QuoteList = () => {
 
                   <div className="desktop-quote-card-title-row">
                     <div className="desktop-quote-card-id">{q.quoteNumber}</div>
-                    <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
+                    <div className="desktop-quote-card-customer">
+                      {q.customer?.companyName || q.companyName || "N/A"}
+                    </div>
                   </div>
 
                   <div className="desktop-quote-card-specs">
@@ -355,7 +424,7 @@ export const QuoteList = () => {
                       <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                         View Details
                       </Link>
-                      {currentUser.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
+                      {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                         <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>
                           Edit
                         </Link>
@@ -370,7 +439,8 @@ export const QuoteList = () => {
           {/* Mobile Stacked Card View */}
           <div className="mobile-quotes-list">
             {filteredQuotes.map((q) => {
-              const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+              const items = Array.isArray(q.items) ? q.items : [];
+              const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
               const discount = subtotal * 0.05;
               const tax = (subtotal - discount) * 0.1;
               const total = subtotal - discount + tax;
@@ -390,7 +460,9 @@ export const QuoteList = () => {
 
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div className="mobile-quote-card-id">{formatMobileQuoteNumber(q.quoteNumber)}</div>
-                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>{q.customer.companyName}</div>
+                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                      {q.customer?.companyName || q.companyName || "N/A"}
+                    </div>
                   </div>
 
                   <div className="mobile-quote-card-specs">
@@ -417,7 +489,7 @@ export const QuoteList = () => {
                     <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                       Details
                     </Link>
-                    {currentUser.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
+                    {currentUser?.role === "Sales" && (q.status === "Draft" || q.status === "AskedForEdit") && (
                       <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                         Edit
                       </Link>

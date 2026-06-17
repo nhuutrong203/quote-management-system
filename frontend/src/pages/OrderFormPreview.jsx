@@ -18,6 +18,14 @@ export const OrderFormPreview = () => {
   const { quoteId } = useParams();
   const [orderPreview, setOrderPreview] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [customer, setCustomer] = useState({
+    companyName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    billingAddress: "",
+    deliveryAddress: "",
+  });
 
   useEffect(() => {
     const loadOrderPreview = async () => {
@@ -26,6 +34,16 @@ export const OrderFormPreview = () => {
       try {
         const response = await apiService.getOrderFormPreview(quoteId);
         setOrderPreview(response.data);
+        if (response.data?.customer) {
+          setCustomer({
+            companyName: response.data.customer.companyName || "",
+            contactName: response.data.customer.contactName || "",
+            email: response.data.customer.email || "",
+            phone: response.data.customer.phone || "",
+            billingAddress: response.data.customer.billingAddress || response.data.customer.address || "",
+            deliveryAddress: response.data.customer.deliveryAddress || response.data.customer.address || "",
+          });
+        }
       } catch (error) {
         console.error("Error loading order form preview:", error);
       } finally {
@@ -51,6 +69,7 @@ export const OrderFormPreview = () => {
   return (
     <div className="fade-in" style={{ textAlign: "left" }}>
       <div
+        className="order-preview-actions-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -85,7 +104,7 @@ export const OrderFormPreview = () => {
           <Link to={quoteId ? `/quotes/${quoteId}` : "/quotes"} className="btn btn-secondary">
             Back
           </Link>
-          <button className="btn btn-primary" type="button">
+          <button onClick={() => window.print()} className="btn btn-primary" type="button">
             Print Shell
           </button>
         </div>
@@ -95,10 +114,7 @@ export const OrderFormPreview = () => {
         <div className="order-preview-header">
           <div className="order-preview-brand">
             <div className="order-preview-logo">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="10" x2="2" y2="10"></line>
-                <path d="M12 22V2l10 8H2z"></path>
-              </svg>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem" }}>AMB</span>
             </div>
             <div>
               <div className="order-preview-brand-title">AMB Packaging</div>
@@ -112,9 +128,7 @@ export const OrderFormPreview = () => {
           <div>
             <div className="order-preview-eyebrow">Order Form</div>
             <h3 className="order-preview-order-number">ORDER FORM {orderPreview.quoteNumber}</h3>
-            <div className="order-preview-quote-reference">
-              Order ID: {orderPreview.orderId}
-            </div>
+            <div className="order-preview-quote-reference">Order ID: {orderPreview.orderId}</div>
           </div>
           <div className="order-preview-total-card">
             <span className="order-preview-total-label">Quote Total</span>
@@ -134,11 +148,13 @@ export const OrderFormPreview = () => {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  {DETAIL_COLUMNS.map((column) => (
-                    <td key={column.key}>{orderPreview.orderDetails[column.key]}</td>
-                  ))}
-                </tr>
+                {orderPreview.orderDetailsRows.map((row, rowIndex) => (
+                  <tr key={`row-${rowIndex}`}>
+                    {DETAIL_COLUMNS.map((column) => (
+                      <td key={`${column.key}-${rowIndex}`}>{row[column.key]}</td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -149,30 +165,60 @@ export const OrderFormPreview = () => {
           <div className="order-preview-customer-grid">
             <div className="order-preview-customer-card">
               <span className="order-preview-customer-label">Company Name</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.companyName}</span>
+              <input
+                type="text"
+                className="order-preview-customer-input"
+                value={customer.companyName}
+                onChange={(e) => setCustomer({ ...customer, companyName: e.target.value })}
+              />
             </div>
             <div className="order-preview-customer-card">
               <span className="order-preview-customer-label">Contact Person</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.contactName}</span>
+              <input
+                type="text"
+                className="order-preview-customer-input"
+                value={customer.contactName}
+                onChange={(e) => setCustomer({ ...customer, contactName: e.target.value })}
+              />
             </div>
             <div className="order-preview-customer-card">
               <span className="order-preview-customer-label">Email</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.email}</span>
+              <input
+                type="email"
+                className="order-preview-customer-input"
+                value={customer.email}
+                onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+              />
             </div>
             <div className="order-preview-customer-card">
               <span className="order-preview-customer-label">Phone</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.phone}</span>
+              <input
+                type="text"
+                className="order-preview-customer-input"
+                value={customer.phone}
+                onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+              />
             </div>
             <div className="order-preview-customer-card order-preview-customer-card-wide">
-              <span className="order-preview-customer-label">Address</span>
-              <span className="order-preview-customer-value">{orderPreview.customer.address}</span>
+              <span className="order-preview-customer-label">Billing Address</span>
+              <textarea
+                className="order-preview-customer-textarea"
+                value={customer.billingAddress}
+                onChange={(e) => setCustomer({ ...customer, billingAddress: e.target.value })}
+              />
+            </div>
+            <div className="order-preview-customer-card order-preview-customer-card-wide">
+              <span className="order-preview-customer-label">Delivery Address</span>
+              <textarea
+                className="order-preview-customer-textarea"
+                value={customer.deliveryAddress}
+                onChange={(e) => setCustomer({ ...customer, deliveryAddress: e.target.value })}
+              />
             </div>
           </div>
         </div>
 
-        <div className="order-preview-footer-note">
-          SC print view prep shell. Layout only, ready for downstream print/PDF work.
-        </div>
+        <div className="order-preview-footer-note">SC print view prep shell. Layout only, ready for downstream print/PDF work.</div>
       </div>
     </div>
   );
