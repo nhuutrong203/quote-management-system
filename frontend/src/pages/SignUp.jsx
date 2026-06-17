@@ -81,35 +81,35 @@ export const SignUp = () => {
 
     // Frontend validations
     if (!name.trim()) {
-      setError("Họ và tên không được để trống.");
+      setError("Full name cannot be empty.");
       return;
     }
     if (!email.trim()) {
-      setError("Email không được để trống.");
+      setError("Email cannot be empty.");
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setError("Định dạng email không hợp lệ.");
+      setError("Invalid email format.");
       return;
     }
     if (!password) {
-      setError("Mật khẩu không được để trống.");
+      setError("Password cannot be empty.");
       return;
     }
     if (password.length < 6) {
-      setError("Mật khẩu phải có độ dài tối thiểu 6 ký tự.");
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError("Passwords do not match.");
       return;
     }
 
     setLoading(true);
     try {
       const newUser = await register(name.trim(), email.trim(), password, proposedRole);
-      setSuccessMessage("Đăng ký thành công! Đang đăng nhập...");
+      setSuccessMessage("Registration successful! Logging in...");
       
       // Extract user: newUser.data for real backend, newUser for mock fallback
       const user = newUser.data && typeof newUser.data === "object" && newUser.data.email 
@@ -126,18 +126,18 @@ export const SignUp = () => {
       if (err.response) {
         const status = err.response.status;
         if (status === 409) {
-          setError("Email này đã được đăng ký.");
+          setError("This email is already registered.");
         } else if (status === 403) {
-          setError("Tài khoản đang chờ Admin phê duyệt.");
+          setError("Account is pending Admin approval.");
         } else if (status === 429) {
           const retryAfter = err.response.data?.retryAfter || err.response.headers?.['retry-after'] || 30;
-          setError(`Sai quá nhiều lần. Hãy thử lại sau ${retryAfter} giây.`);
+          setError(`Too many attempts. Please try again after ${retryAfter} seconds.`);
           startRetryTimer(retryAfter);
         } else {
-          setError(err.response.data?.message || "Đăng ký thất bại. Vui lòng thử lại.");
+          setError(err.response.data?.message || "Registration failed. Please try again.");
         }
       } else {
-        setError("Không thể kết nối đến máy chủ.");
+        setError("Unable to connect to server.");
       }
     } finally {
       setLoading(false);
@@ -303,7 +303,7 @@ export const SignUp = () => {
               disabled={loading || retryTime > 0}
               style={{ width: "100%", padding: "0.85rem", fontSize: "0.95rem", marginTop: "1rem" }}
             >
-              {loading ? "Registering..." : retryTime > 0 ? `Thử lại sau ${retryTime}s` : "Sign Up"}
+              {loading ? "Registering..." : retryTime > 0 ? `Retry in ${retryTime}s` : "Sign Up"}
             </button>
           </form>
 

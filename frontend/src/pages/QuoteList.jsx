@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
 
@@ -15,6 +15,7 @@ const STATUS_FILTER_OPTIONS = [
 
 export const QuoteList = () => {
   const { currentUser } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
   const [filteredQuotes, setFilteredQuotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -522,9 +523,35 @@ export const QuoteList = () => {
                   history[history.length - 1];
 
                 const isEdit = q.status === "AskedForEdit";
-                
+                const canClickToEdit = currentUser?.role === "Sales" && isEdit;
+
+                const handleCardClick = (e) => {
+                  if (
+                    e.target.tagName === "A" ||
+                    e.target.closest("a") ||
+                    e.target.tagName === "BUTTON" ||
+                    e.target.closest("button")
+                  ) {
+                    return;
+                  }
+                  if (canClickToEdit) {
+                    navigate(`/quotes/edit/${q.id}`);
+                  } else {
+                    navigate(`/quotes/${q.id}`);
+                  }
+                };
+
                 return (
-                  <div key={q.id} className="desktop-quote-card fade-in" style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)", padding: "1.25rem" }}>
+                  <div
+                    key={q.id}
+                    className="desktop-quote-card fade-in"
+                    onClick={handleCardClick}
+                    style={{
+                      borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)",
+                      padding: "1.25rem",
+                      cursor: "pointer",
+                    }}
+                  >
                     <div className="desktop-quote-card-header">
                       <span>Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {q.quoteNumber}</span>
                       <span className={`status-badge status-${q.status}`}>
