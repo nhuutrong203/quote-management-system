@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import apiService from "../services/api";
+import StatusBadge from "../components/StatusBadge";
 
 const DETAIL_COLUMNS = [
   { key: "boxStyle", label: "Box Style" },
@@ -120,7 +121,7 @@ export const OrderFormPreview = () => {
               <div className="order-preview-brand-subtitle">Logo Placeholder</div>
             </div>
           </div>
-          <span className="status-badge status-Draft">{orderPreview.status}</span>
+          <StatusBadge status={orderPreview.status} />
         </div>
 
         <div className="order-preview-title-row">

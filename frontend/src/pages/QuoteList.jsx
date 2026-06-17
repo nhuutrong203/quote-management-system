@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiService from "../services/api";
+import StatusBadge from "../components/StatusBadge";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "Draft", label: "Draft" },
@@ -23,6 +24,27 @@ export const QuoteList = () => {
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [draftStatuses, setDraftStatuses] = useState([]);
   const [activeTab, setActiveTab] = useState("quotes"); // "quotes" is active by default as in Figma
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
+
+  const availableStatuses = [
+    { value: "Draft", label: "Draft" },
+    { value: "Pending", label: "Pending HOD" },
+    { value: "Processing", label: "Pending SC" },
+    { value: "PendingApproval", label: "Pending GM" },
+    { value: "Approved", label: "Approved" },
+    { value: "Rejected", label: "Rejected" },
+    { value: "AskedForEdit", label: "Edit Required" }
+  ];
+
+  const handleStatusToggle = (statusVal) => {
+    if (selectedStatuses.includes(statusVal)) {
+      setSelectedStatuses(selectedStatuses.filter(s => s !== statusVal));
+    } else {
+      setSelectedStatuses([...selectedStatuses, statusVal]);
+    }
+  };
 
   const fetchQuotes = async () => {
     try {
@@ -119,6 +141,11 @@ export const QuoteList = () => {
       }
     }
 
+    // Additional status checklist filters
+    if (selectedStatuses.length > 0) {
+      result = result.filter((q) => selectedStatuses.includes(q.status));
+    }
+
     setFilteredQuotes(result);
   }, [searchQuery, selectedStatuses, activeTab, quotes]);
 
@@ -144,25 +171,33 @@ export const QuoteList = () => {
   const isStatusFilterApplied = selectedStatuses.length > 0;
 
   // Separate active/approved quotes from rejected/edit-required quotes
-  const activeQuotesList = isStatusFilterApplied
-    ? filteredQuotes
-    : filteredQuotes.filter(
-        (q) => q.status !== "Rejected" && q.status !== "AskedForEdit"
-      );
+  const activeQuotesList = filteredQuotes.filter(
+    (q) => q.status !== "Rejected" && q.status !== "AskedForEdit"
+  );
 
-  const rejectedAndEditQuotes = isStatusFilterApplied
-    ? []
-    : quotes.filter(
-        (q) => q.status === "Rejected" || q.status === "AskedForEdit"
-      );
+  // Rejected section: always base on full quotes list, but apply selectedStatuses filter
+  // if user has selected Rejected/AskedForEdit statuses
+  const rejectedFilterStatuses = selectedStatuses.filter(
+    (s) => s === "Rejected" || s === "AskedForEdit"
+  );
+  const rejectedAndEditQuotes = quotes.filter((q) => {
+    if (q.status !== "Rejected" && q.status !== "AskedForEdit") return false;
+    if (rejectedFilterStatuses.length > 0) {
+      return rejectedFilterStatuses.includes(q.status);
+    }
+    return true;
+  });
+
+  // Auto-open archive when user filters by Rejected or AskedForEdit
+  const autoShowArchive = rejectedFilterStatuses.length > 0;
 
   return (
     <div className="fade-in">
       {/* Navigation Header (Trang Documents) - Figma horizontal tab layout */}
-      <div className="tabs-nav" style={{ 
-        display: "flex", 
-        gap: "2rem", 
-        borderBottom: "1px solid var(--border-color)", 
+      <div className="tabs-nav" style={{
+        display: "flex",
+        gap: "2rem",
+        borderBottom: "1px solid var(--border-color)",
         marginBottom: "2rem",
         overflowX: "auto"
       }}>
@@ -204,16 +239,16 @@ export const QuoteList = () => {
       </div>
 
       {/* Action Bar */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: "2rem" 
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "2rem"
       }} className="action-bar-wrapper">
         <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
           Quotes List
         </h2>
-        
+
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           {/* Search Input */}
           <div style={{ position: "relative", width: "240px" }}>
@@ -243,9 +278,8 @@ export const QuoteList = () => {
 
           {/* Filter Button */}
           <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={openFilterPanel}
+            className={`btn ${showFilterPanel || selectedStatuses.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
             style={{ height: "38px", padding: "0 1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -273,86 +307,65 @@ export const QuoteList = () => {
       </div>
 
       {/* Filter Panel */}
-      {isFilterOpen && (
-        <div
-          className="card"
-          style={{
-            marginBottom: "2rem",
-            padding: "1.5rem",
-            borderRadius: "var(--radius-lg)",
-          }}
-        >
-          <h4
-            style={{
-              margin: "0 0 1.25rem 0",
-              fontSize: "0.9rem",
-              fontWeight: 900,
-              color: "var(--text-primary)",
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
-            }}
-          >
-            Filter by status
-          </h4>
+      {showFilterPanel && (
+        <div className="card fade-in filter-status-panel">
+          <div style={{ textAlign: "left" }}>
+            <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--text-primary)", marginBottom: "1rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Filter by Status
+            </h4>
+            <div className="filter-status-grid">
+              {availableStatuses.map((st) => {
+                const isChecked = selectedStatuses.includes(st.value);
+                return (
+                  <label 
+                    key={st.value} 
+                    style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: "0.5rem", 
+                      cursor: "pointer", 
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "var(--radius-sm)",
+                      backgroundColor: isChecked ? "rgba(0, 51, 102, 0.05)" : "transparent",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={isChecked}
+                      onChange={() => handleStatusToggle(st.value)}
+                      style={{ 
+                        width: "16px", 
+                        height: "16px", 
+                        accentColor: "var(--primary)",
+                        cursor: "pointer",
+                        margin: 0
+                      }}
+                    />
+                    <StatusBadge status={st.value} />
+                  </label>
+                );
+              })}
+            </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "1rem 1.5rem",
-              alignItems: "center",
-              marginBottom: "1.5rem",
-            }}
-          >
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                  fontWeight: 800,
-                  color: "var(--text-primary)",
-                }}
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1.25rem" }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setSelectedStatuses([])}
+                style={{ height: "38px", flex: 1, fontSize: "0.85rem" }}
+                disabled={selectedStatuses.length === 0}
               >
-                <input
-                  type="checkbox"
-                  checked={draftStatuses.includes(option.value)}
-                  onChange={() => toggleDraftStatus(option.value)}
-                />
-                <span className={`status-badge status-${option.value}`}>
-                  {option.label}
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <div
-            style={{
-              borderTop: "1px solid var(--border-color)",
-              paddingTop: "1rem",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "0.75rem",
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={resetStatusFilter}
-            >
-              Reset All
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={applyStatusFilter}
-            >
-              Apply & Close
-            </button>
+                Reset All
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setShowFilterPanel(false)}
+                style={{ height: "38px", flex: 1, fontSize: "0.85rem" }}
+              >
+                Apply & Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -377,9 +390,7 @@ export const QuoteList = () => {
                 <div key={q.id} className="desktop-quote-card fade-in">
                   <div className="desktop-quote-card-header">
                     <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
-                    <span className={`status-badge status-${q.status}`}>
-                      {translateStatus(q.status)}
-                    </span>
+                    <StatusBadge status={q.status} />
                   </div>
 
                   <div className="desktop-quote-card-title-row">
@@ -438,11 +449,15 @@ export const QuoteList = () => {
                 <div key={q.id} className="mobile-quote-card fade-in">
                   <div className="mobile-quote-card-header">
                     <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</span>
-                    <span className={`status-badge status-${q.status}`}>
-                      {translateStatus(q.status)}
-                    </span>
+                    <StatusBadge status={q.status}>
+                      {q.status === "Pending" ? "Pending" :
+                        q.status === "Processing" ? "Active" :
+                          q.status === "PendingApproval" ? "Active" :
+                            q.status === "Approved" ? "Active" :
+                              q.status === "AskedForEdit" ? "Edit Req" : q.status}
+                    </StatusBadge>
                   </div>
-                  
+
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div className="mobile-quote-card-id">{formatMobileQuoteNumber(q.quoteNumber)}</div>
                     <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>
@@ -488,144 +503,96 @@ export const QuoteList = () => {
       )}
 
       {/* Rejected Quotes Section */}
-      {!isStatusFilterApplied && (
-        <div style={{ marginTop: "3.5rem", textAlign: "left" }} className="rejected-section-wrapper">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
-              Rejected Quotes
-            </h3>
-            <a 
-              href="#" 
-              onClick={(e) => e.preventDefault()} 
-              style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}
-            >
-              View Archive
-            </a>
-          </div>
+      <div style={{ marginTop: "3.5rem", textAlign: "left" }} className="rejected-section-wrapper">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+          <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+            Rejected Quotes
+            {rejectedFilterStatuses.length > 0 && (
+              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginLeft: "0.5rem" }}>
+                ({rejectedAndEditQuotes.length} filtered)
+              </span>
+            )}
+          </h3>
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); setShowArchive(!showArchive); }}
+            style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}
+          >
+            {(showArchive || autoShowArchive) ? "Hide Archive" : "View Archive"}
+          </a>
+        </div>
 
-          {rejectedAndEditQuotes.length === 0 ? (
+        {(showArchive || autoShowArchive) && (
+          rejectedAndEditQuotes.length === 0 ? (
             <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-secondary)" }}>
               No rejected or changes-requested quotes in the archive queue.
             </div>
           ) : (
-            <div className="rejected-quotes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem" }}>
+            <div className="rejected-quotes-grid">
               {rejectedAndEditQuotes.map((q) => {
-                const approvalHistory = Array.isArray(q.approvalHistory)
-                  ? q.approvalHistory
-                  : [];
-
-                const history = Array.isArray(q.history)
-                  ? q.history
-                  : [];
-
-                const latestLog =
-                  approvalHistory[approvalHistory.length - 1] ||
-                  history[history.length - 1];
-
+                const latestLog = q.history[q.history.length - 1];
                 const isEdit = q.status === "AskedForEdit";
-                const canClickToEdit = currentUser?.role === "Sales" && isEdit;
-
-                const handleCardClick = (e) => {
-                  if (
-                    e.target.tagName === "A" ||
-                    e.target.closest("a") ||
-                    e.target.tagName === "BUTTON" ||
-                    e.target.closest("button")
-                  ) {
-                    return;
-                  }
-                  if (canClickToEdit) {
-                    navigate(`/quotes/edit/${q.id}`);
-                  } else {
-                    navigate(`/quotes/${q.id}`);
-                  }
-                };
+                const subtotal = q.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+                const discount = subtotal * 0.05;
+                const tax = (subtotal - discount) * 0.1;
+                const total = subtotal - discount + tax;
 
                 return (
-                  <div
-                    key={q.id}
-                    className="desktop-quote-card fade-in"
-                    onClick={handleCardClick}
-                    style={{
-                      borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)",
-                      padding: "1.25rem",
-                      cursor: "pointer",
-                    }}
-                  >
+                  <div key={q.id} className="desktop-quote-card fade-in" style={{ borderTop: isEdit ? "4px solid var(--warning)" : "4px solid var(--danger)" }}>
                     <div className="desktop-quote-card-header">
-                      <span>Date: {new Date(q.createdAt).toLocaleDateString("en-GB")} | ID: {q.quoteNumber}</span>
-                      <span className={`status-badge status-${q.status}`}>
-                        {isEdit ? "Edit Required" : "Rejected"}
-                      </span>
+                      <span>{new Date(q.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</span>
+                      <StatusBadge status={q.status} />
                     </div>
 
                     <div className="desktop-quote-card-title-row">
-                      <div className="desktop-quote-card-id" style={{ fontSize: "1.1rem" }}>
-                        {isEdit ? "Asked for edit" : latestLog?.note || "Budget Constraint"}
-                      </div>
+                      <div className="desktop-quote-card-id">{q.quoteNumber}</div>
+                      <div className="desktop-quote-card-customer">{q.customer.companyName}</div>
                     </div>
 
-                    {/* Horizontal Border Tags */}
-                    <div style={{ 
-                      display: "flex", 
-                      flexWrap: "wrap", 
-                      gap: "0.5rem", 
-                      padding: "0.75rem 0", 
-                      borderTop: "1px solid var(--border-color)", 
-                      borderBottom: "1px solid var(--border-color)", 
-                      margin: "0.5rem 0" 
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        </svg>
-                        {q.boxStyle || "Corrugated"}
+                    <div className="desktop-quote-card-specs">
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">Box Style</span>
+                        <span className="desktop-quote-card-spec-value">{q.boxStyle || "Corrugated"}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        </svg>
-                        {q.type || "RSC"}
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">Flute</span>
+                        <span className="desktop-quote-card-spec-value" style={{ fontSize: "0.75rem" }}>{q.fluteType || "B"}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="4" y1="9" x2="20" y2="9"></line>
-                          <line x1="4" y1="15" x2="20" y2="15"></line>
-                          <line x1="10" y1="3" x2="8" y2="21"></line>
-                          <line x1="16" y1="3" x2="14" y2="21"></line>
-                        </svg>
-                        {q.fluteType || "B"}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "var(--bg-app)", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", fontSize: "0.75rem", fontWeight: 700 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="9" cy="7" r="4"></circle>
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        {q.moq || "3k"}
+                      <div className="desktop-quote-card-spec-item">
+                        <span className="desktop-quote-card-spec-label">MOQ</span>
+                        <span className="desktop-quote-card-spec-value">{q.moq || "5k"}</span>
                       </div>
                     </div>
 
                     {latestLog?.note && (
-                      <p style={{ fontSize: "0.8rem", fontStyle: "italic", margin: "0.5rem 0 1rem 0", color: "var(--text-secondary)" }}>
-                        "{latestLog.note}"
-                      </p>
+                      <div style={{ fontSize: "0.8rem", fontStyle: "italic", color: "var(--text-secondary)", marginTop: "0.5rem", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-sm)", borderLeft: isEdit ? "3px solid var(--warning)" : "3px solid var(--danger)", textAlign: "left" }}>
+                        Reason: "{latestLog.note}"
+                      </div>
                     )}
 
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "auto" }}>
-                      <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm">Details</Link>
-                      {currentUser?.role === "Sales" && isEdit && (
-                        <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm">Resubmit</Link>
-                      )}
+                    <div className="desktop-quote-card-footer">
+                      <div className="desktop-quote-card-total-group">
+                        <span className="desktop-quote-card-total-label">Total Quote:</span>
+                        <span className="desktop-quote-card-total-value">{formatCurrency(total)}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Link to={`/quotes/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: "0.45rem 1rem" }}>
+                          Details
+                        </Link>
+                        {currentUser.role === "Sales" && (
+                          <Link to={`/quotes/edit/${q.id}`} className="btn btn-primary btn-sm" style={{ padding: "0.45rem 1rem" }}>
+                            Resubmit
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
     </div>
   );
 };
