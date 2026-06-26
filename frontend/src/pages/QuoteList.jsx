@@ -242,13 +242,7 @@ export const QuoteList = () => {
       )}
 
       {/* Navigation Header (Trang Documents) - Figma horizontal tab layout */}
-      <div className="tabs-nav" style={{
-        display: "flex",
-        gap: "2rem",
-        borderBottom: "1px solid var(--border-color)",
-        marginBottom: "2rem",
-        overflowX: "auto"
-      }}>
+      <div className="tabs-nav">
         {roleQueueConfig && (
           <button
             className={`tab-btn ${effectiveActiveTab === "my_queue" ? "active" : ""}`}
@@ -295,20 +289,14 @@ export const QuoteList = () => {
         </button>
       </div>
 
-      {/* Action Bar */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "2rem"
-      }} className="action-bar-wrapper">
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+      <div className="action-bar-wrapper">
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", margin: 0 }} className="action-bar-title">
           {effectiveActiveTab === "my_queue" && roleQueueConfig
             ? roleQueueConfig.title
             : activeTabConfig?.title || "Quotes List"}
         </h2>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div className="action-bar-actions">
           {/* Search Input */}
           <div style={{ position: "relative", width: "240px" }}>
             <input

@@ -1085,6 +1085,9 @@ p {
   .main-content {
     margin-left: 0;
     padding: 1.25rem 1.25rem 5.5rem 1.25rem; /* Extra padding bottom for menu */
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
   
   .bottom-nav {
@@ -2264,23 +2267,13 @@ p {
 
 .filter-status-grid {
   display: grid;
-  grid-template-columns: repeat(7, auto);
-  gap: 0.4rem 0.5rem;
-  justify-content: start;
-}
-
-@media (max-width: 1200px) {
-  .filter-status-grid {
-    grid-template-columns: repeat(4, auto);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
 }
 
 @media (max-width: 1024px) {
   .filter-status-panel {
     max-width: 420px;
-  }
-  .filter-status-grid {
-    grid-template-columns: repeat(3, auto);
   }
 }
 
@@ -2288,9 +2281,6 @@ p {
   .filter-status-panel {
     max-width: 100%;
     margin-left: 0;
-  }
-  .filter-status-grid {
-    grid-template-columns: repeat(4, auto);
   }
 }
 
@@ -2300,9 +2290,347 @@ p {
     margin-left: 0;
     padding: 1.25rem;
   }
-  .filter-status-grid {
-    grid-template-columns: repeat(2, auto);
-    gap: 0.4rem;
+}
+
+/* Custom mobile and responsive styles */
+.mobile-logout-btn {
+  display: none;
+}
+
+.tabs-nav {
+  display: flex;
+  gap: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.action-bar-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.action-bar-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  
+  .role-switcher-container {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .mobile-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    font-weight: 700;
+  }
+
+  .tabs-nav {
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .action-bar-wrapper {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .action-bar-actions {
+    flex-direction: column;
+    align-items: stretch !important;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .action-bar-actions > div {
+    width: 100% !important;
+  }
+
+  .action-bar-actions input {
+    width: 100% !important;
+  }
+
+  .action-bar-actions button,
+  .action-bar-actions a {
+    width: 100%;
+    justify-content: center;
+    height: 40px !important;
+  }
+
+  .mobile-quote-card-spec-row {
+    width: 100%;
+  }
+
+  .mobile-quote-card-spec-value {
+    text-align: right;
   }
 }
 
+/* =====================================================
+   QUOTE DETAIL — Mobile Responsive
+   ===================================================== */
+
+/* Fix: .card overflow:hidden blocks inner table scroll — switch to visible */
+.card {
+  overflow: visible !important;
+}
+
+/* Horizontal scroll wrapper for wide tables */
+.table-scroll-x {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+.table-scroll-x::-webkit-scrollbar {
+  height: 4px;
+}
+.table-scroll-x::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+.table-scroll-x .items-table {
+  min-width: 540px;
+  margin: 1rem 0;
+}
+
+/* Client details 2-col grid — collapses to 1-col on mobile */
+.client-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Quote detail layout classes */
+.quote-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.quote-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.quote-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.quote-detail-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.stepper-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.stepper-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* SKU table scroll wrapper in New Quote page */
+.sku-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+.sku-table-scroll::-webkit-scrollbar { height: 4px; }
+.sku-table-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  /* ---- Quote Detail header — stack vertically ---- */
+  .quote-detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .quote-detail-title h2 {
+    font-size: 1.2rem;
+  }
+
+  .quote-detail-actions {
+    width: 100%;
+  }
+
+  .quote-detail-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* ---- Quote Detail main grid — 1 column ---- */
+  .quote-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  /* ---- Client Details grid — 1 column ---- */
+  .client-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- Stepper — vertical layout ---- */
+  .stepper {
+    flex-direction: column;
+    gap: 0;
+    margin: 1rem 0;
+  }
+
+  .stepper::before {
+    top: 16px;
+    left: 15px;
+    right: auto;
+    bottom: 16px;
+    width: 2px;
+    height: auto;
+  }
+
+  .step-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    flex: unset;
+    min-width: unset;
+  }
+
+  .step-label {
+    text-align: left;
+    margin-top: 0;
+    font-size: 0.8rem;
+    white-space: normal;
+  }
+
+  /* ---- Totals summary — full width ---- */
+  .totals-summary {
+    align-items: stretch;
+  }
+
+  .summary-row {
+    width: 100%;
+  }
+
+  /* ---- New Quote: stack preview + config ---- */
+  .new-quote-split-container {
+    flex-direction: column;
+  }
+
+  .quote-config-panel {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .a4-paper {
+    padding: 1.25rem;
+    min-height: unset;
+  }
+
+  .config-footer-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .config-footer-summary .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =====================================================
+   QUOTE DETAIL — Grid overflow fix (mobile)
+   KEY: CSS Grid children default to min-width:auto
+   which lets them grow beyond their column.
+   Setting min-width:0 forces them to respect 1fr.
+   ===================================================== */
+
+@media (max-width: 768px) {
+
+  /* Force all grid/flex children to stay within their column */
+  .quote-detail-grid > div {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Cards inside grid must not grow beyond column width */
+  .quote-detail-grid .card {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden !important;
+  }
+
+  /* Tables inside cards: clip the card but scroll inside table-scroll-x */
+  .quote-detail-grid .table-scroll-x {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  /* History timeline — wrap long text */
+  .history-timeline {
+    padding-left: 1.25rem;
+  }
+
+  .history-content,
+  .history-meta {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    font-size: 0.8rem;
+  }
+
+  /* Approval panel buttons full width */
+  .quote-detail-grid .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Totals block full width */
+  .totals-summary {
+    padding: 1rem;
+  }
+
+  .summary-row {
+    width: 100%;
+    font-size: 0.85rem;
+  }
+}
