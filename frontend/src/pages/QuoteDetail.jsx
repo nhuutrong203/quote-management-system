@@ -169,13 +169,12 @@ export const QuoteDetail = () => {
 
   return (
     <div className="fade-in" style={{ textAlign: "left" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div className="quote-detail-header">
+        <div className="quote-detail-title">
           <h2>Quote: {quote.quoteNumber}</h2>
-          <span className={`status-badge status-${quote.status}`}>{translateStatus(quote.status)}</span>
           <StatusBadge status={quote.status} />
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="quote-detail-actions">
           <Link to="/quotes" className="btn btn-secondary">Back</Link>
           {currentUser.role === "Sales" && (quote.status === "Draft" || quote.status === "AskedForEdit") && (
             <Link to={`/quotes/edit/${quote.id}`} className="btn btn-primary">Edit</Link>
@@ -187,7 +186,7 @@ export const QuoteDetail = () => {
       </div>
 
       <div className="card" style={{ marginBottom: "2rem" }}>
-        <div className="stepper" style={{ overflowX: "auto" }}>
+        <div className="stepper stepper-scroll">
           {steps.map((step, idx) => {
             const stepStatus = getStepStatus(step.key);
             const isActive = stepStatus.includes("active");
@@ -218,39 +217,41 @@ export const QuoteDetail = () => {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "2rem" }}>
+      <div className="quote-detail-grid">
         <div>
           <div className="card" style={{ marginBottom: "2rem" }}>
             <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
               Packaging Specifications
             </h3>
-            <table className="items-table">
-              <thead>
-                <tr>
-                  {SPEC_COLUMNS.map((column) => (
-                    <th key={column.key}>{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {quote.items.map((item, index) => (
-                  <tr key={item.id || `${item.name}-${index}`}>
+            <div className="table-scroll-x">
+              <table className="items-table">
+                <thead>
+                  <tr>
                     {SPEC_COLUMNS.map((column) => (
-                      <td key={`${column.key}-${index}`} style={{ fontWeight: column.key === "boxStyle" ? 600 : 500 }}>
-                        {item[column.key]}
-                      </td>
+                      <th key={column.key}>{column.label}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {quote.items.map((item, index) => (
+                    <tr key={item.id || `${item.name}-${index}`}>
+                      {SPEC_COLUMNS.map((column) => (
+                        <td key={`${column.key}-${index}`} style={{ fontWeight: column.key === "boxStyle" ? 600 : 500 }}>
+                          {item[column.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="card" style={{ marginBottom: "2rem" }}>
             <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
               Client Details
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div className="client-details-grid">
               <div>
                 <p style={{ fontSize: "0.85rem", textTransform: "uppercase", fontWeight: 600, color: "var(--text-secondary)" }}>Company</p>
                 <p style={{ fontWeight: 600, fontSize: "1rem", color: "var(--text-primary)", marginBottom: "1rem" }}>{quote.clientDetails.companyName}</p>
@@ -281,26 +282,28 @@ export const QuoteDetail = () => {
             <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
               Itemized Quote Details
             </h3>
-            <table className="items-table">
-              <thead>
-                <tr>
-                  <th>Product / Service</th>
-                  <th style={{ width: "80px", textAlign: "right" }}>Qty</th>
-                  <th style={{ width: "160px", textAlign: "right" }}>Unit Price (S$)</th>
-                  <th style={{ width: "160px", textAlign: "right" }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quote.items.map((item, index) => (
-                  <tr key={index}>
-                    <td style={{ fontWeight: 500 }}>{item.name}</td>
-                    <td style={{ textAlign: "right" }}>{new Intl.NumberFormat("en-US").format(item.quantity)}</td>
-                    <td style={{ textAlign: "right" }}>{formatCurrency(item.unitPrice)}</td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>{formatCurrency(item.quantity * item.unitPrice)}</td>
+            <div className="table-scroll-x">
+              <table className="items-table">
+                <thead>
+                  <tr>
+                    <th>Product / Service</th>
+                    <th style={{ width: "80px", textAlign: "right" }}>Qty</th>
+                    <th style={{ width: "130px", textAlign: "right" }}>Unit Price (S$)</th>
+                    <th style={{ width: "130px", textAlign: "right" }}>Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {quote.items.map((item, index) => (
+                    <tr key={index}>
+                      <td style={{ fontWeight: 500 }}>{item.name}</td>
+                      <td style={{ textAlign: "right" }}>{new Intl.NumberFormat("en-US").format(item.quantity)}</td>
+                      <td style={{ textAlign: "right" }}>{formatCurrency(item.unitPrice)}</td>
+                      <td style={{ textAlign: "right", fontWeight: 600 }}>{formatCurrency(item.quantity * item.unitPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="totals-summary">
               <div className="summary-row">
