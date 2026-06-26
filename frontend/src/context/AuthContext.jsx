@@ -1,7 +1,6 @@
-import { createContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import apiService, { normalizeStoredUser } from "../services/api";
-
-export const AuthContext = createContext();
+import { AuthContext } from "./auth-context";
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);

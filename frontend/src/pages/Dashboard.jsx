@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 
@@ -17,7 +17,7 @@ export const Dashboard = () => {
     value: 0
   });
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       const response = await apiService.getQuotes();
       const allQuotes = response.data;
@@ -64,11 +64,11 @@ export const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching quotes for dashboard:", error);
     }
-  };
+  }, [currentUser.role]);
 
   useEffect(() => {
     fetchQuotes();
-  }, [currentUser]);
+  }, [fetchQuotes]);
 
   // Format currency in Singapore Dollars (S$)
   const formatCurrency = (value) => {

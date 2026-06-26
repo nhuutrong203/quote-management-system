@@ -1,5 +1,5 @@
-import React, { useContext, useState, useEffect, useMemo } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { useContext, useState, useEffect, useMemo, useRef } from "react";
+import { AuthContext } from "../context/auth-context";
 import apiService from "../services/api";
 
 // Initial mock data containing default parameters matching the pricing setup
@@ -87,7 +87,7 @@ export const Settings = () => {
   const { currentUser, switchRole, login } = useContext(AuthContext);
 
   // Sub-tab Navigation
-  const [activeSubTab, setActiveSubTab] = useState("profile"); // 'profile' | 'masterData' | 'userManagement'
+  const [activeSubTab, setActiveSubTab] = useState("masterData"); // 'masterData' | 'userManagement'
 
   // Core Master Data State
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
@@ -130,7 +130,7 @@ export const Settings = () => {
   const [sandboxColors, setSandboxColors] = useState("COLOR_2");
   const [sandboxJoints, setSandboxJoints] = useState("JOINT_GLUE");
   const [sandboxMoq, setSandboxMoq] = useState("MOQ_5K");
-  const [sandboxDimension, setSandboxDimension] = useState("DIM_ID_STD");
+  const [sandboxDimension] = useState("DIM_ID_STD");
   const [sandboxQty, setSandboxQty] = useState(5000);
 
   const isGM = currentUser?.role === "GM";
@@ -160,8 +160,11 @@ export const Settings = () => {
   }, [users, isGM, currentUser]);
 
   // Toast Helper
+  const toastIdRef = useRef(0);
+
   const showToast = (message, type = "success") => {
-    const id = Date.now();
+    toastIdRef.current += 1;
+    const id = toastIdRef.current;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -457,16 +460,6 @@ export const Settings = () => {
       <div className="border-b border-slate-200">
         <nav className="flex gap-6 py-2">
           <button
-            onClick={() => setActiveSubTab("profile")}
-            className={`pb-3 text-sm font-bold border-b-2 transition-all ${
-              activeSubTab === "profile"
-                ? "border-[#003366] text-[#003366]"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Profile & Environment
-          </button>
-          <button
             onClick={() => setActiveSubTab("masterData")}
             className={`pb-3 text-sm font-bold border-b-2 transition-all ${
               activeSubTab === "masterData"
@@ -488,80 +481,6 @@ export const Settings = () => {
           </button>
         </nav>
       </div>
-
-      {/* SUB-TAB 1: PROFILE & ENVIRONMENT TESTING */}
-      {activeSubTab === "profile" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* User Profile Card */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
-              <div className="flex items-center gap-4 border-b border-slate-100 pb-6">
-                <img src={currentUser.avatar} alt="User Avatar" className="w-16 h-16 rounded-full border border-slate-200 bg-slate-50" />
-                <div>
-                  <h3 className="font-extrabold text-slate-800 text-lg">{currentUser.name}</h3>
-                  <p className="text-sm text-slate-500 font-medium">{currentUser.email}</p>
-                  <span className="inline-flex items-center gap-1.5 mt-2 bg-sky-50 text-[#003366] font-bold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border border-sky-100">
-                    {currentUser.role === "Sales" ? "Sales/SC" : currentUser.role === "SC_HEAD" ? "SC Head" : currentUser.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Switches active roles context directly inside profile subtab */}
-              <div className="space-y-2 max-w-sm">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block">Switch Active Role</label>
-                <p className="text-xs text-slate-400 font-medium">Change your active role to test layout permissions and workflow approvals.</p>
-                <div className="relative mt-2">
-                  <select
-                    value={currentUser.role}
-                    onChange={(e) => switchRole(e.target.value)}
-                    className="appearance-none bg-slate-50 border border-slate-200 text-slate-800 py-2.5 pl-4 pr-10 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer w-full"
-                  >
-                    <option value="Sales">Sales Representative (Siow)</option>
-                    <option value="HOD">Head of Department (HOD)</option>
-                    <option value="SC_HEAD">Supply Chain Head (SC Head)</option>
-                    <option value="GM">General Manager (GM)</option>
-                    <option value="Planning">Planning Department</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Environmental details card */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-              <h3 className="font-extrabold text-slate-800 text-sm border-b border-slate-100 pb-3 mb-4">Environment Details</h3>
-              <table className="w-full text-xs border-collapse">
-                <tbody>
-                  <tr className="border-b border-slate-100">
-                    <td className="py-3 text-slate-500 font-semibold">System Version:</td>
-                    <td className="py-3 font-bold text-right text-slate-800">v1.0.2 - Staging Mode</td>
-                  </tr>
-                  <tr className="border-b border-slate-100">
-                    <td className="py-3 text-slate-500 font-semibold">Storage Mode:</td>
-                    <td className="py-3 font-bold text-right text-emerald-600">MongoDB Backend API</td>
-                  </tr>
-                  <tr className="border-b border-slate-100">
-                    <td className="py-3 text-slate-500 font-semibold">API Driver:</td>
-                    <td className="py-3 font-bold text-right text-slate-800">Axios + Express Server</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 text-slate-500 font-semibold">Master Data Access:</td>
-                    <td className="py-3 font-bold text-right text-slate-800">
-                      {isGM ? "Full Write Access (GM)" : "Read Only (Sales/SC/HOD/SC Head)"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* SUB-TAB 2: MASTER DATA CONFIGURATION */}
       {activeSubTab === "masterData" && (

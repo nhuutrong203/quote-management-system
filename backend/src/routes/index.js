@@ -8,6 +8,7 @@ const quoteSetupRoutes = require("../modules/quoteSetup/quoteSetup.routes");
 const quoteParameterRoutes = require("../modules/quoteParameters/quoteParameters.routes");
 const userRoutes = require("../modules/users/user.routes");
 const authRoutes = require("../modules/auth/auth.routes");
+const notificationRoutes = require("../modules/notifications/notification.routes");
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use("/orders", orderRoutes);
 router.use("/quote-setup", quoteSetupRoutes);
 router.use("/quote-parameters", quoteParameterRoutes);
 router.use("/users", userRoutes);
+router.use("/notifications", notificationRoutes);
 
 module.exports = router;

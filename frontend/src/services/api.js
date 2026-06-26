@@ -593,6 +593,13 @@ export const apiService = {
     };
   },
 
+  getNotifications: async () => {
+    const response = await axiosInstance.get("/notifications");
+    return {
+      data: unwrapResponse(response) || [],
+    };
+  },
+
   createQuote: async (payload) => {
     const response = await axiosInstance.post("/quotes", buildQuotePayload(payload));
     return {
@@ -612,9 +619,15 @@ export const apiService = {
       action: payload.action,
       note: payload.note,
     });
+    const payloadData = unwrapResponse(response);
 
     return {
-      data: normalizeQuote(unwrapResponse(response)),
+      data: payloadData?.quote
+        ? {
+            quote: normalizeQuote(payloadData.quote),
+            order: payloadData.order,
+          }
+        : normalizeQuote(payloadData),
     };
   },
 };

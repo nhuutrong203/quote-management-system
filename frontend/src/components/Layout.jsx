@@ -1,12 +1,13 @@
-import { useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
+import apiService from "../services/api";
 
 export const Layout = () => {
   const { currentUser, logout, switchRole } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [notificationBanner, setNotificationBanner] = useState(null);
 
   const handleRoleChange = (e) => {
     switchRole(e.target.value);
@@ -16,6 +17,32 @@ export const Layout = () => {
     logout();
     navigate("/login");
   };
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await apiService.getNotifications();
+      const latestNotification = response.data?.[0];
+
+      if (!latestNotification) return;
+
+      setNotificationBanner((currentBanner) => {
+        if (currentBanner?.id === latestNotification.id) {
+          return currentBanner;
+        }
+
+        return latestNotification;
+      });
+    } catch (error) {
+      console.error("Error polling notifications:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const intervalId = window.setInterval(fetchNotifications, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchNotifications, currentUser?.id]);
 
   const getRoleLabel = (role) => {
     if (role === "Sales") return "Sales/SC";
@@ -112,13 +139,13 @@ export const Layout = () => {
           <span>Quotes</span>
         </Link>
 
-        <button onClick={() => setShowSettingsModal(true)} className={`bottom-nav-item ${showSettingsModal ? "active" : ""}`}>
+        <Link to="/settings" className={`bottom-nav-item ${location.pathname === "/settings" ? "active" : ""}`}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
           <span>Settings</span>
-        </button>
+        </Link>
       </nav>
 
       {/* Main Workspace Area */}
@@ -138,7 +165,7 @@ export const Layout = () => {
             <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>AMB Packaging Corporate Portal</p>
           </div>
           
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div className="header-actions">
             {/* Quick Testing Switcher */}
             <div className="role-switcher-container" style={{ display: "flex" }}>
               <span style={{ fontWeight: 700, color: "var(--text-secondary)", fontSize: "0.85rem" }}>Active Role:</span>
@@ -159,63 +186,29 @@ export const Layout = () => {
                 <span className={`role-tag role-${currentUser.role.replace('/', '-').replace(/\s+/g, '-')}`}>{getRoleLabel(currentUser.role)}</span>
               </div>
             </div>
+
+            {/* Logout button (Mobile only) */}
+            <button onClick={handleLogout} className="mobile-logout-btn btn btn-secondary btn-sm">
+              Sign Out
+            </button>
           </div>
         </header>
 
-        {/* Settings Modal (Mobile Role Selector / Logout) */}
-        {showSettingsModal && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 300,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1.5rem"
-            }}
-            onClick={() => setShowSettingsModal(false)}
-          >
-            <div
-              className="card"
-              style={{ width: "320px", padding: "1.5rem", textAlign: "left" }}
-              onClick={(e) => e.stopPropagation()}
+        {notificationBanner && (
+          <div className="notification-banner" role="status">
+            <span>{notificationBanner.message}</span>
+            <button
+              type="button"
+              className="notification-banner-close"
+              onClick={() => setNotificationBanner(null)}
+              aria-label="Dismiss notification"
             >
-              <h3 style={{ marginBottom: "1rem" }}>Settings / Switch Role</h3>
-              
-              <div className="form-group">
-                <label className="form-label">Active Role</label>
-                <select
-                  className="form-control"
-                  value={currentUser.role}
-                  onChange={(e) => {
-                    handleRoleChange(e);
-                    setShowSettingsModal(false);
-                  }}
-                >
-                  <option value="Sales">Sales/SC (Siow)</option>
-                  <option value="HOD">HOD (Head of Dept)</option>
-                  <option value="SC_HEAD">SC Head (Supply Chain)</option>
-                  <option value="GM">GM (General Manager)</option>
-                  <option value="Planning">Planning Department</option>
-                </select>
-              </div>
-
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.5rem" }}>
-                <button onClick={handleLogout} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
-                  Sign Out
-                </button>
-                <button onClick={() => setShowSettingsModal(false)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
-                  Close
-                </button>
-              </div>
-            </div>
+              x
+            </button>
           </div>
         )}
+
+
 
         {/* Dynamic page render */}
         <div className="page-body">
