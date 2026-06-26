@@ -657,7 +657,8 @@ export const QuoteForm = () => {
               >
                 SKU Specifications
               </h4>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <div className="sku-table-scroll">
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "540px" }}>
                 <thead>
                   <tr
                     style={{
@@ -700,6 +701,7 @@ export const QuoteForm = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               <div style={{ marginTop: "1.5rem", display: "grid", gap: "0.5rem" }}>
                 {pricedItems.map((item, index) => (
