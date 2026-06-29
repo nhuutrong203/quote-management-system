@@ -440,47 +440,17 @@ export const apiService = {
     });
     
     const newUser = normalizeUser(unwrapResponse(response));
-    
-    if (typeof window !== "undefined") {
-      const localUsersStr = window.localStorage.getItem("quote_system_users");
-      if (localUsersStr) {
-        try {
-          const users = JSON.parse(localUsersStr);
-          users.push({ ...newUser, password });
-          window.localStorage.setItem("quote_system_users", JSON.stringify(users));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-
     return {
       data: newUser,
     };
   },
 
   getUsers: async () => {
-    if (typeof window !== "undefined") {
-      const localUsersStr = window.localStorage.getItem("quote_system_users");
-      if (localUsersStr) {
-        try {
-          const parsed = JSON.parse(localUsersStr);
-          return { data: parsed.map(normalizeUser) };
-        } catch (e) {
-          console.error("Error parsing local users", e);
-        }
-      }
-    }
-    
     const response = await axiosInstance.get("/users");
     const backendUsers = (unwrapResponse(response) || []).map((u) => ({
       ...normalizeUser(u),
       password: u.password || "demo1234",
     }));
-    
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("quote_system_users", JSON.stringify(backendUsers));
-    }
     
     return {
       data: backendUsers,
@@ -488,66 +458,14 @@ export const apiService = {
   },
 
   updateUser: async (id, updatedFields) => {
-    if (typeof window !== "undefined") {
-      const localUsersStr = window.localStorage.getItem("quote_system_users");
-      let users = [];
-      if (localUsersStr) {
-        try {
-          users = JSON.parse(localUsersStr);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      
-      if (users.length === 0) {
-        const response = await apiService.getUsers();
-        users = response.data;
-      }
-      
-      const updatedUsers = users.map((u) => {
-        if (String(u.id) === String(id)) {
-          const role = normalizeRole(updatedFields.role || u.role);
-          return {
-            ...u,
-            ...updatedFields,
-            role,
-            roleLabel: getRoleLabel(role),
-            avatar: updatedFields.avatar || u.avatar || buildAvatar(updatedFields),
-          };
-        }
-        return u;
-      });
-      
-      window.localStorage.setItem("quote_system_users", JSON.stringify(updatedUsers));
-      const updatedUser = updatedUsers.find((u) => String(u.id) === String(id));
-      return { data: normalizeUser(updatedUser) };
-    }
-    
-    return { data: null };
+    const response = await axiosInstance.put(`/users/${id}`, updatedFields);
+    const updatedUser = unwrapResponse(response);
+    return { data: normalizeUser(updatedUser) };
   },
 
   deleteUser: async (id) => {
-    if (typeof window !== "undefined") {
-      const localUsersStr = window.localStorage.getItem("quote_system_users");
-      let users = [];
-      if (localUsersStr) {
-        try {
-          users = JSON.parse(localUsersStr);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      
-      if (users.length === 0) {
-        const response = await apiService.getUsers();
-        users = response.data;
-      }
-      
-      const filteredUsers = users.filter((u) => String(u.id) !== String(id));
-      window.localStorage.setItem("quote_system_users", JSON.stringify(filteredUsers));
-      return { data: { success: true } };
-    }
-    return { data: { success: false } };
+    await axiosInstance.delete(`/users/${id}`);
+    return { data: { success: true } };
   },
 
   getCustomers: async () => {
