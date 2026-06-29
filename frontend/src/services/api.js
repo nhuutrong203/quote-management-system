@@ -564,6 +564,13 @@ export const apiService = {
     };
   },
 
+  updateQuoteSetup: async (data) => {
+    const response = await axiosInstance.put("/quote-setup", data);
+    return {
+      data: unwrapResponse(response),
+    };
+  },
+
   getQuoteParameterOptions: async () => {
     const response = await axiosInstance.get("/quote-parameters/options");
     return {

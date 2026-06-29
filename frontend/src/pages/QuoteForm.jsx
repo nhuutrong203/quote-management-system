@@ -151,8 +151,8 @@ const buildDefaultQuoteItem = (fieldDefaults) => ({
   name: buildItemName(fieldDefaults),
 });
 
-const getCalculatedUnitPrice = (item) => {
-  let price = 0.42;
+const getUnitPriceForMoq = (item, moqValue, basePrice = 0.42) => {
+  let price = basePrice;
 
   price += PRICE_ADJUSTMENTS.boxStyle[item.boxStyle] || 0;
   price += PRICE_ADJUSTMENTS.type[item.type] || 0;
@@ -162,7 +162,7 @@ const getCalculatedUnitPrice = (item) => {
   price += PRICE_ADJUSTMENTS.colors[item.colors] || 0;
   price += PRICE_ADJUSTMENTS.joints[item.joints] || 0;
 
-  const multiplier = MOQ_DISCOUNT_MULTIPLIERS[item.moq] || 1;
+  const multiplier = MOQ_DISCOUNT_MULTIPLIERS[moqValue] || 1;
   return Number(Math.max(price * multiplier, 0.12).toFixed(2));
 };
 
@@ -195,8 +195,10 @@ export const QuoteForm = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [formTab, setFormTab] = useState("parameters");
-  const [setup, setSetup] = useState({ discountRate: 5, taxRate: 10 });
+  const [setup, setSetup] = useState({ discountRate: 5, taxRate: 10, basePrice: 0.42 });
   const [parameterFields, setParameterFields] = useState([]);
+
+  const getCalculatedUnitPrice = (item) => getUnitPriceForMoq(item, item.moq, setup.basePrice);
   const [quoteItems, setQuoteItems] = useState([]);
   const [clientDetails, setClientDetails] = useState(() => buildClientDetailsFromCustomer(null));
   const [quoteStatus, setQuoteStatus] = useState(id ? "" : "Draft");
@@ -326,7 +328,7 @@ export const QuoteForm = () => {
           lineTotal: Number((unitPrice * quantity).toFixed(2)),
         };
       }),
-    [quoteItems]
+    [quoteItems, setup.basePrice]
   );
 
   const subtotal = pricedItems.reduce((sum, item) => sum + item.lineTotal, 0);
@@ -822,6 +824,279 @@ export const QuoteForm = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Unit Price Analysis & MOQ Matrix */}
+          <div
+            className="card"
+            style={{
+              marginTop: "2rem",
+              padding: "1.75rem",
+              backgroundColor: "var(--bg-card)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            <div style={{ marginBottom: "1.5rem" }}>
+              <h3
+                style={{
+                  fontSize: "1.2rem",
+                  fontWeight: 800,
+                  color: "var(--primary)",
+                  margin: 0,
+                }}
+              >
+                Unit Price Analysis & MOQ Matrix
+              </h3>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                Breakdown of price adjustments and dynamic pricing comparison across different order quantities.
+              </span>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  marginTop: "1rem",
+                  padding: "0.75rem 1rem",
+                  backgroundColor: "rgba(0, 51, 102, 0.04)",
+                  border: "1px dashed rgba(0, 51, 102, 0.15)",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  color: "var(--primary)",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 500, marginRight: "0.4rem" }}>Global Discount Rate:</span>
+                  <span style={{ color: "var(--danger)" }}>{setup.discountRate}%</span>
+                </div>
+                <div style={{ borderLeft: "1px solid rgba(0, 51, 102, 0.15)", paddingLeft: "1.5rem" }}>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 500, marginRight: "0.4rem" }}>Global GST Rate:</span>
+                  <span style={{ color: "var(--success)" }}>{setup.taxRate}%</span>
+                </div>
+              </div>
+            </div>
+
+            {pricedItems.map((item, index) => {
+              const price1k = getUnitPriceForMoq(item, "1k", setup.basePrice);
+              const price3k = getUnitPriceForMoq(item, "3k", setup.basePrice);
+              const price5k = getUnitPriceForMoq(item, "5k", setup.basePrice);
+              const price10k = getUnitPriceForMoq(item, "10k", setup.basePrice);
+
+              const adjustments = [
+                { name: "Base Price", value: setup.basePrice, isBase: true },
+                { name: `Box Style (${getOptionLabel("boxStyle", item.boxStyle)})`, value: PRICE_ADJUSTMENTS.boxStyle[item.boxStyle] || 0 },
+                { name: `Type (${getOptionLabel("type", item.type)})`, value: PRICE_ADJUSTMENTS.type[item.type] || 0 },
+                { name: `Dimension (${getOptionLabel("dimension", item.dimension)})`, value: PRICE_ADJUSTMENTS.dimension[item.dimension] || 0 },
+                { name: `Flute Type (${getOptionLabel("fluteType", item.fluteType)})`, value: PRICE_ADJUSTMENTS.fluteType[item.fluteType] || 0 },
+                { name: `Board Quality (${getOptionLabel("boardQuality", item.boardQuality)})`, value: PRICE_ADJUSTMENTS.boardQuality[item.boardQuality] || 0 },
+                { name: `Colors (${getOptionLabel("colors", item.colors)})`, value: PRICE_ADJUSTMENTS.colors[item.colors] || 0 },
+                { name: `Joints (${getOptionLabel("joints", item.joints)})`, value: PRICE_ADJUSTMENTS.joints[item.joints] || 0 },
+              ].filter((adj) => adj.isBase || adj.value !== 0);
+
+              const sumAdjustments = adjustments.reduce((sum, adj) => sum + adj.value, 0);
+              const selectedMoqNormalized = String(item.moq || "").toLowerCase().trim();
+              const isMoq1k = selectedMoqNormalized === "1k" || selectedMoqNormalized === "1000" || selectedMoqNormalized === "based on enquiry";
+              const isMoq3k = selectedMoqNormalized === "3k" || selectedMoqNormalized === "3000";
+              const isMoq5k = selectedMoqNormalized === "5k" || selectedMoqNormalized === "5000";
+              const isMoq10k = selectedMoqNormalized === "10k" || selectedMoqNormalized === "10000";
+
+              return (
+                <div
+                  key={`matrix-${item.id}`}
+                  style={{
+                    marginBottom: index === pricedItems.length - 1 ? 0 : "2rem",
+                    borderBottom: index === pricedItems.length - 1 ? "none" : "1px solid var(--border-color)",
+                    paddingBottom: index === pricedItems.length - 1 ? 0 : "1.5rem",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    SKU {index + 1}: {item.name}
+                  </h4>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "2rem",
+                    }}
+                  >
+                    <div style={{ flex: "1 1 280px" }}>
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "var(--text-secondary)",
+                          marginBottom: "0.75rem",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        Price Breakdown (Before MOQ Discount)
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {adjustments.map((adj, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "0.8rem",
+                              color: adj.isBase ? "var(--text-primary)" : "var(--text-secondary)",
+                            }}
+                          >
+                            <span>{adj.name}</span>
+                            <span style={{ fontWeight: adj.isBase ? 700 : 500 }}>
+                              {adj.value >= 0 && !adj.isBase ? "+" : ""}
+                              {formatCurrency(adj.value)}
+                            </span>
+                          </div>
+                        ))}
+                        <div
+                          style={{
+                            borderTop: "1px dashed var(--border-color)",
+                            marginTop: "0.5rem",
+                            paddingTop: "0.5rem",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: "0.8rem",
+                            fontWeight: 700,
+                            color: "var(--primary)",
+                          }}
+                        >
+                          <span>Subtotal (Base + Adjustments)</span>
+                          <span>{formatCurrency(sumAdjustments)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: "1.2 1 320px" }}>
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "var(--text-secondary)",
+                          marginBottom: "0.75rem",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        MOQ Unit Price Matrix
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr
+                              style={{
+                                borderBottom: "1px solid var(--border-color)",
+                                fontSize: "0.75rem",
+                                color: "var(--text-secondary)",
+                                textAlign: "left",
+                              }}
+                            >
+                              <th style={{ padding: "0.4rem 0.5rem" }}>MOQ Tier</th>
+                              <th style={{ padding: "0.4rem 0.5rem", textAlign: "center" }}>Discount</th>
+                              <th style={{ padding: "0.4rem 0.5rem", textAlign: "right" }}>Unit Price</th>
+                              <th style={{ padding: "0.4rem 0.5rem", textAlign: "right" }}>Total (MOQ)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              {
+                                tier: "1k",
+                                qty: 1000,
+                                discount: "0%",
+                                price: price1k,
+                                isCurrent: isMoq1k,
+                              },
+                              {
+                                tier: "3k",
+                                qty: 3000,
+                                discount: "2%",
+                                price: price3k,
+                                isCurrent: isMoq3k,
+                              },
+                              {
+                                tier: "5k",
+                                qty: 5000,
+                                discount: "4%",
+                                price: price5k,
+                                isCurrent: isMoq5k,
+                              },
+                              {
+                                tier: "10k",
+                                qty: 10000,
+                                discount: "7%",
+                                price: price10k,
+                                isCurrent: isMoq10k,
+                              },
+                            ].map((row, i) => (
+                              <tr
+                                key={i}
+                                style={{
+                                  borderBottom: "1px solid var(--bg-app)",
+                                  fontSize: "0.8rem",
+                                  color: row.isCurrent ? "var(--primary)" : "var(--text-primary)",
+                                  fontWeight: row.isCurrent ? 700 : 400,
+                                  backgroundColor: row.isCurrent ? "rgba(134, 59, 255, 0.05)" : "transparent",
+                                }}
+                              >
+                                <td style={{ padding: "0.6rem 0.5rem", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                                  {row.tier}
+                                  {row.isCurrent && (
+                                    <span
+                                      style={{
+                                        fontSize: "0.65rem",
+                                        fontWeight: 700,
+                                        padding: "1px 4px",
+                                        borderRadius: "3px",
+                                        backgroundColor: "var(--primary)",
+                                        color: "#ffffff",
+                                      }}
+                                    >
+                                      Selected
+                                    </span>
+                                  )}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "0.6rem 0.5rem",
+                                    textAlign: "center",
+                                    color: row.discount !== "0%" ? "var(--success)" : "inherit",
+                                    fontWeight: row.discount !== "0%" ? 700 : "inherit",
+                                  }}
+                                >
+                                  {row.discount}
+                                </td>
+                                <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
+                                  {formatCurrency(row.price)}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "0.6rem 0.5rem",
+                                    textAlign: "right",
+                                    color: row.isCurrent ? "var(--primary)" : "var(--text-secondary)",
+                                  }}
+                                >
+                                  {formatCurrency(row.price * row.qty)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
