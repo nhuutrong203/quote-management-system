@@ -183,10 +183,67 @@ const login = async ({ email, password }) => {
   };
 };
 
+const updateUser = async (userId, updatedFields) => {
+  if (updatedFields.role && !ALLOWED_ROLES.includes(updatedFields.role)) {
+    const error = new Error("Invalid role");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!isDatabaseConnected()) {
+    const index = mockUsers.findIndex((item) => String(item._id) === String(userId));
+    if (index === -1) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+    mockUsers[index] = {
+      ...mockUsers[index],
+      ...updatedFields,
+      updatedAt: new Date(),
+    };
+    return sanitizeUser(mockUsers[index]);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  Object.assign(user, updatedFields);
+  await user.save();
+  return sanitizeUser(user);
+};
+
+const deleteUser = async (userId) => {
+  if (!isDatabaseConnected()) {
+    const index = mockUsers.findIndex((item) => String(item._id) === String(userId));
+    if (index === -1) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+    mockUsers.splice(index, 1);
+    return { success: true };
+  }
+
+  const result = await User.findByIdAndDelete(userId);
+  if (!result) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  return { success: true };
+};
+
 module.exports = {
   getUsers,
   getUserById,
   signup,
   login,
   buildAuthToken,
+  updateUser,
+  deleteUser,
 };

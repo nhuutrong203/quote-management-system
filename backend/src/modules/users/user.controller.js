@@ -43,7 +43,50 @@ const getUserById = async (req, res, next) => {
   }
 };
 
+const updateUser = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "Invalid user id",
+      });
+    }
+
+    const updatedUser = await userService.updateUser(req.params.id, req.body);
+
+    res.status(200).json({
+      status: "OK",
+      message: "User updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "Invalid user id",
+      });
+    }
+
+    await userService.deleteUser(req.params.id);
+
+    res.status(200).json({
+      status: "OK",
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUsers,
   getUserById,
+  updateUser,
+  deleteUser,
 };
