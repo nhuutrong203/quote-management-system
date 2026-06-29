@@ -87,12 +87,56 @@ export const Settings = () => {
   const { currentUser, switchRole, login } = useContext(AuthContext);
 
   // Sub-tab Navigation
-  const [activeSubTab, setActiveSubTab] = useState("masterData"); // 'masterData' | 'userManagement'
+  const [activeSubTab, setActiveSubTab] = useState("masterData"); // 'masterData' | 'userManagement' | 'pricingSettings'
 
   // Core Master Data State
   const [parameters, setParameters] = useState(INITIAL_PARAMETERS);
   const [activeTab, setActiveTab] = useState("boxStyle");
   const [toasts, setToasts] = useState([]);
+
+  // Quote Setup pricing settings
+  const [quoteSetup, setQuoteSetup] = useState({
+    discountRate: 5,
+    taxRate: 10,
+    basePrice: 0.42,
+  });
+  const [isSavingSetup, setIsSavingSetup] = useState(false);
+
+  useEffect(() => {
+    const fetchQuoteSetup = async () => {
+      try {
+        const response = await apiService.getQuoteSetup();
+        if (response.data) {
+          setQuoteSetup({
+            discountRate: response.data.discountRate ?? 5,
+            taxRate: response.data.taxRate ?? 10,
+            basePrice: response.data.basePrice ?? 0.42,
+          });
+        }
+      } catch (err) {
+        console.error("Error loading quote setup in Settings:", err);
+      }
+    };
+    fetchQuoteSetup();
+  }, []);
+
+  const handleQuoteSetupSubmit = async (e) => {
+    e.preventDefault();
+    if (!isGM) {
+      showToast("Access Denied: Only GM has permission to modify settings.", "error");
+      return;
+    }
+    setIsSavingSetup(true);
+    try {
+      await apiService.updateQuoteSetup(quoteSetup);
+      showToast("Quote configuration updated successfully!");
+    } catch (err) {
+      console.error(err);
+      showToast("An error occurred while updating quote configuration.", "error");
+    } finally {
+      setIsSavingSetup(false);
+    }
+  };
 
   // User List State
   const [users, setUsers] = useState([]);
@@ -479,6 +523,16 @@ export const Settings = () => {
           >
             User & Role Management
           </button>
+          <button
+            onClick={() => setActiveSubTab("pricingSettings")}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all ${
+              activeSubTab === "pricingSettings"
+                ? "border-[#003366] text-[#003366]"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Pricing & Tax Setup
+          </button>
         </nav>
       </div>
 
@@ -714,6 +768,96 @@ export const Settings = () => {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* SUB-TAB 4: PRICING & TAX SETUP */}
+      {activeSubTab === "pricingSettings" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden text-left">
+          <div className="border-b border-slate-100 p-6">
+            <h2 className="text-lg font-extrabold text-slate-800">Pricing & Tax Setup</h2>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              {isGM
+                ? "Configure the base price, default quote discount, and GST tax rate applied dynamically system-wide."
+                : "View current system-wide pricing adjustments (GM editing privileges only)."}
+            </p>
+          </div>
+
+          <form onSubmit={handleQuoteSetupSubmit} className="p-6 max-w-lg space-y-6">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-wide">Base Price (S$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={quoteSetup.basePrice}
+                onChange={(e) => setQuoteSetup((prev) => ({ ...prev, basePrice: parseFloat(e.target.value) || 0 }))}
+                disabled={!isGM}
+                className={`w-full border rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 ${
+                  !isGM ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" : "bg-slate-50 text-slate-800 border-slate-200 focus:border-sky-500"
+                }`}
+              />
+              <span className="text-[10px] text-slate-400">
+                The baseline starting price of a standard carton before adding parameters and MOQ multipliers.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-wide">Discount Rate (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={quoteSetup.discountRate}
+                onChange={(e) => setQuoteSetup((prev) => ({ ...prev, discountRate: parseFloat(e.target.value) || 0 }))}
+                disabled={!isGM}
+                className={`w-full border rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 ${
+                  !isGM ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" : "bg-slate-50 text-slate-800 border-slate-200 focus:border-sky-500"
+                }`}
+              />
+              <span className="text-[10px] text-slate-400">
+                The default discount rate percentage applied to the quote subtotal.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-wide">GST Tax Rate (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={quoteSetup.taxRate}
+                onChange={(e) => setQuoteSetup((prev) => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
+                disabled={!isGM}
+                className={`w-full border rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 ${
+                  !isGM ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" : "bg-slate-50 text-slate-800 border-slate-200 focus:border-sky-500"
+                }`}
+              />
+              <span className="text-[10px] text-slate-400">
+                The GST/tax rate percentage applied to the discounted subtotal.
+              </span>
+            </div>
+
+            {isGM && (
+              <div className="pt-4 flex justify-start">
+                <button
+                  type="submit"
+                  disabled={isSavingSetup}
+                  className="bg-[#003366] hover:bg-[#001e40] text-white px-5 py-2.5 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isSavingSetup && (
+                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {isSavingSetup ? "Saving Settings..." : "Save Settings"}
+                </button>
+              </div>
+            )}
+          </form>
         </div>
       )}
 
